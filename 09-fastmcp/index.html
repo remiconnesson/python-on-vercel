@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FastMCP on Vercel</title>
+<meta name="description" content="A Python MCP server built with FastMCP and deployed to Vercel, explained and tested live from this page.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" referrerpolicy="no-referrer">
+<link href="https://vercel.com/geist/vercel-brand.css" rel="stylesheet">
+<style>
+  /* Page-owned layout only. Everything else comes from the published foundation. */
+  .vbg-custom-measure { max-width: 68ch; }
+  .vbg-custom-measure > * { margin: 0; }
+  .vbg-custom-route { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--vbg-space-6); }
+  ol.vbg-custom-route > li, ol.vbg-custom-route > li + li { margin: 0; min-width: 0; display: grid; gap: var(--vbg-space-2); align-content: start; padding-top: var(--vbg-space-4); border-top: 1px solid var(--vbg-border-strong); }
+  .vbg-custom-route > li > * { margin: 0; }
+  .vbg-custom-output { margin: 0; padding: var(--vbg-space-4); min-height: 6rem; max-height: 28rem; overflow: auto; background: var(--vbg-surface-secondary); border: 1px solid var(--vbg-border-subtle); border-radius: var(--vbg-radius-small); font-size: var(--vbg-type-compact); line-height: var(--vbg-leading-compact); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .vbg-custom-controls { display: flex; flex-wrap: wrap; gap: var(--vbg-space-3); align-items: end; }
+  .vbg-custom-controls > * { margin: 0; min-width: 0; }
+  .vbg-custom-wide { flex: 1 1 22rem; }
+  .vbg-custom-wide input { width: 100%; }
+  .vbg-custom-sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--vbg-space-6); align-items: start; }
+  .vbg-custom-sources > * { margin: 0; min-width: 0; }
+  .vbg-custom-source { display: grid; gap: var(--vbg-space-2); margin: 0; min-width: 0; }
+  .vbg-custom-source > * { margin: 0; }
+  .vbg-custom-source pre { padding: var(--vbg-space-4); background: var(--vbg-surface-secondary); border: 1px solid var(--vbg-border-subtle); border-radius: var(--vbg-radius-small); font-size: var(--vbg-type-compact); line-height: var(--vbg-leading-compact); overflow-x: auto; }
+  .vbg-custom-timeline { display: block; width: 100%; height: auto; }
+  #raw-request, #raw-response { height: 22rem; max-height: none; }
+  .vbg-custom-tool[hidden] { display: none; }
+  @media (max-width: 720px) {
+    .vbg-custom-route { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body class="vbg-report">
+<div class="vbg-shell">
+  <a class="vbg-skip-link" href="#main">Skip to content</a>
+  <header class="vbg-header">
+    <div class="vbg-masthead">
+      <span class="vbg-identity"><span class="vbg-wordmark" role="img" aria-label="Vercel"></span></span>
+      <div class="vbg-document-meta">
+        <span class="vbg-context">Python on Vercel, demo 9 of 9</span>
+        <span class="vbg-state">Live deployment</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="vbg-opening" aria-labelledby="title">
+      <div class="vbg-opening-claim">
+        <h1 class="vbg-title" id="title">A Python MCP server on Vercel that Cursor and Claude can call</h1>
+        <div class="vbg-custom-measure"><p class="vbg-lede">This page is an MCP client. It just connected to the FastMCP server running in this deployment at <code class="vbg-mono">/mcp</code>, the same endpoint an agent in Cursor or Claude uses. The server runs as one Vercel Function, in stateless mode, so any instance can answer any request.</p></div>
+      </div>
+      <div class="vbg-opening-proof">
+        <div class="vbg-stat-strip">
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Server</p>
+            <p class="vbg-stat-value" id="stat-server">…</p>
+            <p class="vbg-stat-detail" id="stat-server-detail">From the initialize response</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">MCP protocol</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-protocol">…</span></p>
+            <p class="vbg-stat-detail">Negotiated with this page</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Function region</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-region">…</span></p>
+            <p class="vbg-stat-detail" id="stat-instance">From the server_info tool</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Session</p>
+            <p class="vbg-stat-value" id="stat-session">…</p>
+            <p class="vbg-stat-detail">No <code class="vbg-mono">Mcp-Session-Id</code> to keep</p>
+          </div>
+        </div>
+        <p class="vbg-caption" id="opening-status" role="status">Connecting to /mcp.</p>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="call-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="call-title">Call the tools the way an agent does</h2>
+        <p>Each call is a JSON-RPC <code class="vbg-mono">tools/call</code> request to <code class="vbg-mono">/mcp</code>. The answer comes back as a stream of server-sent events, so <code class="vbg-mono">count_to</code> can report progress while it is still running.</p>
+      </div>
+      <div class="vbg-custom-controls">
+        <div class="vbg-field">
+          <label class="vbg-label" for="tool">Tool</label>
+          <select id="tool">
+            <option value="find_demo">find_demo</option>
+            <option value="count_to">count_to</option>
+            <option value="server_info">server_info</option>
+          </select>
+        </div>
+        <div class="vbg-field vbg-custom-wide vbg-custom-tool" data-tool="find_demo">
+          <label class="vbg-label" for="question">question</label>
+          <input id="question" value="We run Celery for background jobs">
+        </div>
+        <div class="vbg-field vbg-custom-tool" data-tool="count_to" hidden>
+          <label class="vbg-label" for="count-n">n</label>
+          <input id="count-n" type="number" min="1" max="10" value="6" inputmode="numeric">
+        </div>
+        <button class="vbg-button" id="call" type="button">Call tool</button>
+      </div>
+      <p class="vbg-heading-20" id="call-summary" role="status">No call yet.</p>
+      <figure class="vbg-chart">
+        <div class="vbg-chart-header"><h3 class="vbg-heading-16">What arrived on the stream, and when</h3></div>
+        <div class="vbg-chart-viewport" tabindex="0">
+          <svg class="vbg-custom-timeline" id="stream-svg" viewBox="0 0 1000 150" role="img" aria-labelledby="stream-desc">
+            <desc id="stream-desc">Timeline of the events in the last tool call. Call a tool to fill it.</desc>
+          </svg>
+        </div>
+        <figcaption class="vbg-caption">Each mark is one server-sent event, placed when this browser read it. Progress notifications before the result mean the response streamed from the function as the tool ran.</figcaption>
+      </figure>
+      <div class="vbg-table-wrap" id="results-wrap" hidden>
+        <table>
+          <caption class="vbg-visually-hidden">Demos returned by find_demo</caption>
+          <thead><tr><th scope="col">Match</th><th scope="col">Kind</th><th scope="col">Links</th></tr></thead>
+          <tbody id="results"></tbody>
+        </table>
+      </div>
+      <div class="vbg-grid">
+        <div class="vbg-span-6 vbg-custom-source">
+          <h3 class="vbg-heading-16">Request</h3>
+          <pre class="vbg-custom-output vbg-mono" id="raw-request" aria-live="polite">Call a tool to see the JSON-RPC request.</pre>
+        </div>
+        <div class="vbg-span-6 vbg-custom-source">
+          <h3 class="vbg-heading-16">Response stream</h3>
+          <pre class="vbg-custom-output vbg-mono" id="raw-response" aria-live="polite">The events the server sent appear here.</pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="connect-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="connect-title">Connect your own agent in one line</h2>
+        <p>The endpoint is <code class="vbg-mono" id="endpoint">/mcp</code>. Cursor, Claude Code and the FastMCP client negotiate the newer sessionless protocol, <code class="vbg-mono">2026-07-28</code>, when they support it; FastMCP 4 serves both protocol versions from the same endpoint. This demo has no authentication, so its tools are read-only.</p>
+      </div>
+      <div class="vbg-span-12">
+        <div class="vbg-custom-sources">
+          <figure class="vbg-custom-source">
+            <figcaption class="vbg-label">Claude Code</figcaption>
+            <pre class="vbg-mono" tabindex="0"><code class="vbg-custom-endpoint" data-template="claude mcp add --transport http python-on-vercel {url}">claude mcp add --transport http python-on-vercel /mcp</code></pre>
+          </figure>
+          <figure class="vbg-custom-source">
+            <figcaption class="vbg-label">Cursor, in <code class="vbg-mono">~/.cursor/mcp.json</code></figcaption>
+            <pre class="vbg-mono" tabindex="0"><code class="vbg-custom-endpoint" data-template='{
+  "mcpServers": {
+    "python-on-vercel": { "url": "{url}" }
+  }
+}'>{ "mcpServers": { "python-on-vercel": { "url": "/mcp" } } }</code></pre>
+          </figure>
+          <figure class="vbg-custom-source">
+            <figcaption class="vbg-label">Python, with the FastMCP client</figcaption>
+            <pre class="vbg-mono" tabindex="0"><code class="vbg-custom-endpoint" data-template='import asyncio
+from fastmcp import Client
+
+async def main():
+    async with Client("{url}") as client:
+        result = await client.call_tool("find_demo", {"question": "we run Celery"})
+        print(result.data)
+
+asyncio.run(main())'>from fastmcp import Client</code></pre>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="exposes-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="exposes-title">What the server exposes, as an agent sees it</h2>
+        <p>Read live from <code class="vbg-mono">tools/list</code>, <code class="vbg-mono">resources/templates/list</code> and <code class="vbg-mono">prompts/list</code>. FastMCP builds each schema from the Python type hints and docstring.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Tools, resources and prompts listed by the server</caption>
+          <thead><tr><th scope="col">Name</th><th scope="col">Kind</th><th scope="col">Inputs</th><th scope="col">Description</th></tr></thead>
+          <tbody id="catalog"><tr><td colspan="4">Listing…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="stateless-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="stateless-title">Stateless means any instance can answer</h2>
+        <p>With <code class="vbg-mono">stateless_http=True</code>, the server keeps no session between requests, so nothing ties a client to one function instance. That matters because Cursor and Claude Code don't send the cookies sticky sessions would need. Fluid compute still reuses warm instances, which the instance IDs below show.</p>
+      </div>
+      <div class="vbg-custom-controls">
+        <button class="vbg-button" id="reuse" type="button">Call server_info 8 times</button>
+      </div>
+      <p class="vbg-heading-20" id="reuse-summary" role="status">No calls yet.</p>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Which instance answered each call</caption>
+          <thead>
+            <tr><th scope="col">Call</th><th scope="col">Instance</th><th scope="col" class="vbg-numeric">Instance uptime</th><th scope="col" class="vbg-numeric">Round trip</th><th scope="col">Session header</th></tr>
+          </thead>
+          <tbody id="reuse-rows"><tr><td colspan="5">Run the calls to see which instance answers.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="code-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="code-title">A tool is a typed Python function with a docstring</h2>
+        <p>Excerpts from <code class="vbg-mono">main.py</code>. FastMCP turns the signature into the input schema and the docstring into the description an agent reads. FastAPI serves this page at <code class="vbg-mono">/</code>, and the MCP app answers <code class="vbg-mono">/mcp</code>.</p>
+      </div>
+      <div class="vbg-span-12">
+        <div class="vbg-custom-sources">
+          <figure class="vbg-custom-source">
+            <figcaption class="vbg-label">A tool that streams progress</figcaption>
+            <pre class="vbg-mono" tabindex="0"><code>mcp = FastMCP("Python on Vercel")
+
+
+@mcp.tool(annotations={"readOnlyHint": True})
+async def count_to(n: Annotated[int, Field(ge=1, le=10)], ctx: Context) -&gt; str:
+    """Count to n, one number every 0.5 seconds, reporting progress after each one."""
+    for i in range(1, n + 1):
+        await asyncio.sleep(0.5)
+        await ctx.report_progress(i, n, f"Counted {i} of {n}")
+    return f"Counted to {n} in {n * 0.5:.1f} seconds"</code></pre>
+          </figure>
+          <figure class="vbg-custom-source">
+            <figcaption class="vbg-label">Serving it from one Vercel Function</figcaption>
+            <pre class="vbg-mono" tabindex="0"><code>mcp_app = mcp.http_app(path="/mcp", stateless_http=True)
+app = FastAPI(title="FastMCP on Vercel", lifespan=mcp_app.lifespan)
+
+
+@app.get("/")
+def index(request: Request):
+    ...  # this page for browsers, JSON for everything else
+
+
+# Mounted at the root, after the FastAPI routes, so POST /mcp
+# is answered directly instead of being redirected to /mcp/.
+app.mount("/", mcp_app)</code></pre>
+          </figure>
+        </div>
+      </div>
+      <h3 class="vbg-heading-20">The path of an MCP request</h3>
+      <div class="vbg-span-12">
+        <ol class="vbg-custom-route">
+          <li>
+            <p class="vbg-label">Agent or this page</p>
+            <p>Sends <code class="vbg-mono">POST /mcp</code> with a JSON-RPC request, accepting <code class="vbg-mono">text/event-stream</code>.</p>
+          </li>
+          <li>
+            <p class="vbg-label">Vercel network</p>
+            <p>Received at <span class="vbg-mono" id="route-edge">…</span>, the closest edge location, and routed to the function.</p>
+          </li>
+          <li>
+            <p class="vbg-label">Vercel Function</p>
+            <p>FastMCP runs the tool in <span class="vbg-mono" id="route-region">…</span> and streams notifications and the result back.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="audit-title">
+      <h2 class="vbg-heading-24" id="audit-title">Endpoints and limits</h2>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Endpoints served by this app</caption>
+          <thead><tr><th scope="col">Endpoint</th><th scope="col">What it is</th></tr></thead>
+          <tbody>
+            <tr><th scope="row"><code class="vbg-mono">POST /mcp</code></th><td>The MCP server, Streamable HTTP, stateless</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /</code></th><td>This page for browsers, a JSON summary for everything else</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /docs</code></th><td>FastAPI's generated docs for the non-MCP routes</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p>A tool call is one function request, so it can run for up to 300 seconds by default. The tools here are read-only and open to anyone; for real tools, add one of FastMCP's authentication options, such as bearer tokens or OAuth, before connecting agents. <code class="vbg-mono">find_demo</code> searches a snapshot of the Python on Vercel catalog bundled with the deployment.</p>
+        <ul class="vbg-sources">
+          <li><a href="https://gofastmcp.com/deployment/http">FastMCP HTTP deployment</a></li>
+          <li><a href="https://gofastmcp.com/servers/auth/authentication">FastMCP authentication</a></li>
+          <li><a href="https://vercel.com/docs/frameworks/backend/fastapi">FastAPI on Vercel</a></li>
+          <li><a href="https://python-on-vercel-catalog.vercel.zone">Python on Vercel catalog</a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vbg-footer">
+    <span class="vbg-logo" role="img" aria-label="Vercel"></span>
+    <span>Source: <code class="vbg-mono">python-on-vercel/09-fastmcp</code></span>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SVG = "http://www.w3.org/2000/svg";
+let protocol = "2025-11-25";
+let nextId = 0;
+
+function parseVercelId(value) {
+  if (!value) return { edge: "local", region: null };
+  const parts = value.split("::");
+  return { edge: parts[0], region: parts.length > 2 ? parts[1] : null };
+}
+
+// One JSON-RPC request over Streamable HTTP. The server answers with server-sent
+// events: notifications for this request may arrive before the result.
+async function rpc(method, params, onEvent) {
+  const message = { jsonrpc: "2.0", id: ++nextId, method };
+  if (params) message.params = params;
+  const started = performance.now();
+  const res = await fetch("/mcp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": protocol },
+    body: JSON.stringify(message),
+  });
+  const events = [];
+  let result = null;
+  const handle = (data) => {
+    const msg = JSON.parse(data);
+    const event = { at: (performance.now() - started) / 1000, msg };
+    events.push(event);
+    if (onEvent) onEvent(event);
+    if (msg.id === message.id) result = msg;
+  };
+  if ((res.headers.get("content-type") || "").includes("text/event-stream")) {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let newline;
+      while ((newline = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, newline).trimEnd();
+        buffer = buffer.slice(newline + 1);
+        if (line.startsWith("data:")) handle(line.slice(5).trim());
+      }
+    }
+  } else if (res.status !== 202) {
+    handle(await res.text());
+  }
+  return {
+    request: message, result, events, status: res.status,
+    ms: performance.now() - started,
+    route: parseVercelId(res.headers.get("x-vercel-id")),
+    session: res.headers.get("mcp-session-id"),
+  };
+}
+
+function toolResult(call) {
+  const r = call.result?.result;
+  if (!r) return null;
+  if (r.structuredContent) return r.structuredContent.result ?? r.structuredContent;
+  const text = r.content?.find((c) => c.type === "text")?.text;
+  try { return JSON.parse(text); } catch { return text; }
+}
+
+function cell(row, content, { numeric = false, mono = false, header = false } = {}) {
+  const el = document.createElement(header ? "th" : "td");
+  if (header) el.scope = "row";
+  if (numeric) el.className = "vbg-numeric";
+  if (mono) {
+    const code = document.createElement("span");
+    code.className = "vbg-mono";
+    code.textContent = content;
+    el.append(code);
+  } else if (content instanceof Node) {
+    el.append(content);
+  } else {
+    el.textContent = content;
+  }
+  row.append(el);
+}
+
+function svgEl(name, attrs, text) {
+  const el = document.createElementNS(SVG, name);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+// Opening: initialize, then a real tools/call to server_info.
+async function connect() {
+  try {
+    const init = await rpc("initialize", { protocolVersion: protocol, capabilities: {}, clientInfo: { name: "fastmcp-explainer-page", version: "1.0" } });
+    const info = init.result.result;
+    protocol = info.protocolVersion;
+    await fetch("/mcp", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": protocol }, body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) });
+    $("stat-server").textContent = info.serverInfo.name;
+    $("stat-server-detail").textContent = `FastMCP ${info.serverInfo.version}`;
+    $("stat-protocol").textContent = info.protocolVersion;
+    $("stat-session").textContent = init.session ? "Stateful" : "None";
+    const server = await rpc("tools/call", { name: "server_info", arguments: {} });
+    const data = toolResult(server);
+    $("stat-region").textContent = data.region;
+    $("stat-instance").textContent = `Instance ${data.instance_id}, Python ${data.python}`;
+    $("route-edge").textContent = server.route.edge;
+    $("route-region").textContent = data.region;
+    $("opening-status").textContent = `Connected in ${Math.round(init.ms)} ms, then called server_info in ${Math.round(server.ms)} ms.`;
+    await listCatalog();
+  } catch (error) {
+    $("opening-status").textContent = `Could not reach the MCP server: ${error.message}`;
+  }
+}
+
+async function listCatalog() {
+  const [tools, templates, prompts] = await Promise.all([rpc("tools/list"), rpc("resources/templates/list"), rpc("prompts/list")]);
+  const body = $("catalog");
+  body.replaceChildren();
+  const add = (name, kind, inputs, description) => {
+    const row = document.createElement("tr");
+    cell(row, name, { header: true });
+    cell(row, kind);
+    cell(row, inputs || "none", { mono: Boolean(inputs) });
+    cell(row, description.split("\n")[0]);
+    body.append(row);
+  };
+  for (const t of tools.result.result.tools) {
+    add(t.name, t.annotations?.readOnlyHint ? "Tool, read-only" : "Tool", Object.keys(t.inputSchema?.properties || {}).join(", "), t.description || "");
+  }
+  for (const r of templates.result.result.resourceTemplates) add(r.uriTemplate, "Resource template", "slug", r.description || "");
+  for (const p of prompts.result.result.prompts) add(p.name, "Prompt", (p.arguments || []).map((a) => a.name).join(", "), p.description || "");
+}
+
+function drawTimeline(events, total) {
+  const svg = $("stream-svg");
+  svg.querySelectorAll(":scope > :not(desc)").forEach((el) => el.remove());
+  const left = 40, right = 960, axisY = 100;
+  const span = Math.max(total, events.length ? events[events.length - 1].at : 0, 0.5) * 1.05;
+  const x = (s) => left + (s / span) * (right - left);
+  svg.append(svgEl("line", { class: "vbg-chart-axis", x1: left, x2: right, y1: axisY, y2: axisY, stroke: "currentColor" }));
+  const step = span > 4 ? 1 : 0.5;
+  for (let s = 0; s <= span; s += step) {
+    svg.append(svgEl("line", { class: "vbg-chart-gridline", x1: x(s), x2: x(s), y1: axisY, y2: axisY + 6, stroke: "currentColor" }));
+    svg.append(svgEl("text", { class: "vbg-chart-value", x: x(s), y: axisY + 26, "text-anchor": "middle", fill: "currentColor" }, `${s} s`));
+  }
+  events.forEach((e) => {
+    const isResult = e.msg.id !== undefined;
+    svg.append(svgEl("line", { class: "vbg-series-stroke vbg-series-1", x1: x(e.at), x2: x(e.at), y1: 44, y2: axisY, stroke: "currentColor", "stroke-width": 2 }));
+    svg.append(svgEl("circle", { class: isResult ? "vbg-data-point vbg-series-fill vbg-series-1" : "vbg-data-point", cx: x(e.at), cy: 44, r: isResult ? 7 : 5, fill: isResult ? "currentColor" : "none", stroke: "currentColor", "stroke-width": 2 }));
+    const label = isResult ? "result" : (e.msg.params?.progress !== undefined ? String(e.msg.params.progress) : "event");
+    svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: x(e.at), y: isResult ? 12 : 30, "text-anchor": isResult ? "end" : "middle", fill: "currentColor" }, label));
+  });
+  $("stream-desc").textContent = events.length ? `${events.length} events; the last arrived ${events[events.length - 1].at.toFixed(2)} s after the request.` : "Timeline of the events in the last tool call.";
+}
+
+function showResults(data) {
+  const wrap = $("results-wrap");
+  const body = $("results");
+  body.replaceChildren();
+  if (!Array.isArray(data)) { wrap.hidden = true; return; }
+  for (const d of data) {
+    const row = document.createElement("tr");
+    cell(row, d.name, { header: true });
+    cell(row, d.kind);
+    const links = document.createElement("span");
+    d.links.forEach((l, i) => {
+      if (i) links.append(" ");
+      const a = document.createElement("a");
+      a.href = l.url;
+      a.textContent = l.label;
+      links.append(a);
+    });
+    cell(row, links);
+    body.append(row);
+  }
+  wrap.hidden = data.length === 0;
+}
+
+function selectedTool() {
+  const name = $("tool").value;
+  if (name === "find_demo") return { name, arguments: { question: $("question").value, limit: 5 } };
+  if (name === "count_to") return { name, arguments: { n: Number($("count-n").value) } };
+  return { name, arguments: {} };
+}
+
+async function callTool() {
+  const params = selectedTool();
+  params._meta = { progressToken: `page-${Date.now()}` };
+  const button = $("call");
+  button.disabled = true;
+  $("call-summary").textContent = `Calling ${params.name}…`;
+  $("raw-response").textContent = "";
+  const events = [];
+  const expected = params.name === "count_to" ? params.arguments.n * 0.5 : 0.5;
+  try {
+    const call = await rpc("tools/call", params, (e) => {
+      events.push(e);
+      drawTimeline(events, expected);
+      $("raw-response").textContent += `${JSON.stringify(e.msg, null, 2)}\n\n`;
+    });
+    $("raw-request").textContent = JSON.stringify(call.request, null, 2);
+    const notifications = call.events.filter((e) => e.msg.method).length;
+    const error = call.result?.result?.isError || call.result?.error;
+    $("call-summary").textContent = error
+      ? `${params.name} returned an error in ${(call.ms / 1000).toFixed(2)} s.`
+      : `${params.name} answered in ${(call.ms / 1000).toFixed(2)} s with ${notifications} progress ${notifications === 1 ? "notification" : "notifications"} before the result.`;
+    showResults(params.name === "find_demo" && !error ? toolResult(call) : null);
+  } catch (err) {
+    $("call-summary").textContent = `The call failed: ${err.message}`;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function runReuse() {
+  const button = $("reuse");
+  button.disabled = true;
+  $("reuse-summary").textContent = "Calling…";
+  const rows = [];
+  try {
+    for (let i = 0; i < 8; i++) {
+      const call = await rpc("tools/call", { name: "server_info", arguments: {} });
+      rows.push({ call, data: toolResult(call) });
+    }
+    const body = $("reuse-rows");
+    body.replaceChildren();
+    rows.forEach(({ call, data }, i) => {
+      const row = document.createElement("tr");
+      cell(row, String(i + 1), { header: true });
+      cell(row, data.instance_id, { mono: true });
+      cell(row, `${data.instance_uptime_s.toFixed(1)} s`, { numeric: true });
+      cell(row, `${Math.round(call.ms)} ms`, { numeric: true });
+      cell(row, call.session ? call.session : "none");
+      body.append(row);
+    });
+    const instances = new Set(rows.map((r) => r.data.instance_id)).size;
+    const sessions = rows.filter((r) => r.call.session).length;
+    $("reuse-summary").textContent = `8 independent calls, answered by ${instances} ${instances === 1 ? "instance" : "instances"}, ${sessions === 0 ? "with no session header" : `${sessions} with a session header`}.`;
+  } catch (err) {
+    $("reuse-summary").textContent = `Calls failed: ${err.message}`;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function fillEndpoint() {
+  const url = `${location.origin}/mcp`;
+  $("endpoint").textContent = url;
+  document.querySelectorAll(".vbg-custom-endpoint").forEach((el) => {
+    el.textContent = el.dataset.template.replaceAll("{url}", url);
+  });
+}
+
+$("tool").addEventListener("change", () => {
+  document.querySelectorAll(".vbg-custom-tool").forEach((el) => { el.hidden = el.dataset.tool !== $("tool").value; });
+});
+$("call").addEventListener("click", callTool);
+$("reuse").addEventListener("click", runReuse);
+fillEndpoint();
+drawTimeline([], 3);
+connect();
+</script>
+<style>
+  /* Syntax colors for code painted by gpu-lexer (see the script below). */
+  .vbg-custom-tok-keyword { color: var(--vbg-color-error); }
+  .vbg-custom-tok-function { color: var(--vbg-color-info); }
+  .vbg-custom-tok-string { color: var(--vbg-color-success); }
+  .vbg-custom-tok-number, .vbg-custom-tok-constant, .vbg-custom-tok-type { color: var(--vbg-color-warning); }
+  .vbg-custom-tok-comment, .vbg-custom-tok-operator { color: var(--vbg-text-secondary); }
+</style>
+<script type="module">
+  // Syntax highlighting with gpu-lexer (https://gpu-lexer.vercel.app/), a small WebGPU
+  // model that labels tokens in any language, so no block needs a language name.
+  // Every <pre> is painted, and painted again when the page rewrites it (live outputs).
+  // Without WebGPU the import or parse fails and the code stays plain.
+  // Opt a block out with data-highlight="off".
+  const lexer = import("https://cdn.jsdelivr.net/npm/gpu-lexer@0.0.3/dist/index.js").catch(() => null);
+  const painted = new WeakMap();
+  const pending = new Set();
+  let timer;
+
+  async function paint(pre) {
+    const target = pre.querySelector("code") ?? pre;
+    const text = target.textContent;
+    if (!text.trim() || painted.get(target) === text) return;
+    const mod = await lexer;
+    if (!mod) return;
+    let spans;
+    try {
+      spans = await mod.parse(text);
+    } catch {
+      return;
+    }
+    if (target.textContent !== text) return; // rewritten while parsing; painted on the next pass
+    const out = document.createDocumentFragment();
+    let cursor = 0;
+    for (const { type, start, end } of spans) {
+      if (start > cursor) out.append(text.slice(cursor, start));
+      const part = text.slice(start, end);
+      if (type === "plain") {
+        out.append(part);
+      } else {
+        const span = document.createElement("span");
+        span.className = `vbg-custom-tok-${type}`;
+        span.textContent = part;
+        out.append(span);
+      }
+      cursor = end;
+    }
+    if (cursor < text.length) out.append(text.slice(cursor));
+    painted.set(target, text);
+    target.replaceChildren(out);
+  }
+
+  function schedule(pre) {
+    if (pre.dataset.highlight === "off") return;
+    pending.add(pre);
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const batch = [...pending];
+      pending.clear();
+      batch.forEach(paint);
+    }, 120);
+  }
+
+  document.querySelectorAll("pre").forEach(schedule);
+  new MutationObserver((records) => {
+    for (const record of records) {
+      const node = record.target.nodeType === Node.ELEMENT_NODE ? record.target : record.target.parentElement;
+      const pre = node?.closest("pre");
+      if (pre) schedule(pre);
+      for (const added of record.addedNodes) {
+        if (added.nodeType !== Node.ELEMENT_NODE) continue;
+        if (added.matches("pre")) schedule(added);
+        added.querySelectorAll("pre").forEach(schedule);
+      }
+    }
+  }).observe(document.body, { subtree: true, childList: true, characterData: true });
+</script>
+</body>
+</html>

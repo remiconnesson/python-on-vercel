@@ -22,6 +22,7 @@ guidelines](https://vercel.com/design.dark.md) and load only the published
 | 6 | [`06-langgraph`](06-langgraph) | LangGraph agent (agent ↔ tools) behind FastAPI, SSE token streaming, AI Gateway via OIDC | [link](https://python-on-vercel-langgraph.vercel.zone) |
 | 7 | [`07-langgraph-workflow`](07-langgraph-workflow) | A LangGraph graph inside a durable Workflow: LLM calls as steps, human approval via a Workflow hook | [link](https://python-on-vercel-langgraph-workflow.vercel.zone) |
 | 8 | [`08-containers`](08-containers) | Container Images for Vercel Functions: `Dockerfile.vercel` with an apt package, served on Fluid compute | [link](https://python-on-vercel-containers.vercel.zone) |
+| 9 | [`09-fastmcp`](09-fastmcp) | A FastMCP server (Python MCP) that Cursor and Claude can call: tools, a resource, a prompt, streamed progress, stateless on Fluid compute | [link](https://python-on-vercel-fastmcp.vercel.zone) |
 
 ## How the repo deploys
 

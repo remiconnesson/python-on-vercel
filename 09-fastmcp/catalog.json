@@ -1,0 +1,833 @@
+{
+ "source": "https://python-on-vercel-catalog.vercel.zone",
+ "entries": [
+  {
+   "slug": "fastapi-explainer",
+   "name": "FastAPI explainer",
+   "what": "Zero-config FastAPI with streaming, validation and instance reuse, tested live on the page",
+   "kind": "Explainer demo",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Live",
+     "url": "https://python-on-vercel-fastapi.vercel.zone"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/remiconnesson/python-on-vercel/tree/main/01-fastapi"
+    }
+   ]
+  },
+  {
+   "slug": "fastapi-boilerplate",
+   "name": "FastAPI Boilerplate",
+   "what": "FastAPI with zero configuration",
+   "kind": "Template",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/fastapi-python-boilerplate"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/fastapi"
+    }
+   ]
+  },
+  {
+   "slug": "flask-boilerplate",
+   "name": "Flask Boilerplate",
+   "what": "Flask with zero configuration",
+   "kind": "Template",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/flask-python-boilerplate"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/flask"
+    }
+   ]
+  },
+  {
+   "slug": "flask-hello-world",
+   "name": "Flask Hello World",
+   "what": "Flask 3 on the Python runtime",
+   "kind": "Template",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/flask-hello-world"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/flask3"
+    }
+   ]
+  },
+  {
+   "slug": "starlette-starter",
+   "name": "Starlette Starter",
+   "what": "A Starlette API with zero configuration",
+   "kind": "Template",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/starlette-starter"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/starlette"
+    }
+   ]
+  },
+  {
+   "slug": "fasthtml-boilerplate",
+   "name": "FastHTML Boilerplate",
+   "what": "HTML apps with Python, HTMX and ASGI",
+   "kind": "Template",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/fasthtml-python-boilerplate"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/framework-boilerplates/fasthtml"
+    }
+   ]
+  },
+  {
+   "slug": "python-hello-world",
+   "name": "Python Hello World",
+   "what": "A single Python function on the Python runtime",
+   "kind": "Template",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/python-hello-world"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/hello-world"
+    }
+   ]
+  },
+  {
+   "slug": "django-explainer",
+   "name": "Django explainer",
+   "what": "Django in one function, static files served by the CDN, admin without a database, tested live",
+   "kind": "Explainer demo",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Live",
+     "url": "https://python-on-vercel-django.vercel.zone"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/remiconnesson/python-on-vercel/tree/main/02-django"
+    }
+   ]
+  },
+  {
+   "slug": "django-hello-world",
+   "name": "Django Hello World",
+   "what": "Django on the Python runtime",
+   "kind": "Template",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/django-hello-world"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/django"
+    }
+   ]
+  },
+  {
+   "slug": "django-notes-app",
+   "name": "Django Notes App",
+   "what": "A Django notes app with SQLite locally and Postgres on Vercel",
+   "kind": "Template",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/django-notes"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/django-notes"
+    }
+   ]
+  },
+  {
+   "slug": "django-rest-framework",
+   "name": "Django REST Framework",
+   "what": "A minimal Django REST Framework API",
+   "kind": "Template",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/django-rest-framework"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/django-rest-framework"
+    }
+   ]
+  },
+  {
+   "slug": "fastapi-with-the-ai-sdk-for-python",
+   "name": "FastAPI with the AI SDK for Python",
+   "what": "Christian Minich's FastAPI app using the Python AI SDK",
+   "kind": "Field demo",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Live, needs Vercel login",
+     "url": "https://python-2n7vaoaxd.playground-vercel.tools/"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/cnolanminich/fde-challenge/tree/christian-example/python_app"
+    },
+    {
+     "label": "Slack",
+     "url": "https://vercel.enterprise.slack.com/archives/C0BH8EMN1GA/p1784659672271289"
+    }
+   ]
+  },
+  {
+   "slug": "python-backends-recording",
+   "name": "Python backends recording",
+   "what": "Startups team walkthrough of FastAPI, Django and Flask on Vercel",
+   "kind": "Talk or recording",
+   "capability": "Web APIs and apps",
+   "links": [
+    {
+     "label": "Slack",
+     "url": "https://vercel.enterprise.slack.com/archives/C08RTMG10JK/p1780328816445089"
+    }
+   ]
+  },
+  {
+   "slug": "next-js-fastapi-starter",
+   "name": "Next.js + FastAPI Starter",
+   "what": "A monorepo with a Next.js frontend and a public FastAPI backend",
+   "kind": "Template",
+   "capability": "Python backend with a JavaScript frontend",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/fast-api/next-js-fastapi-starter"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/nextjs-fastapi"
+    }
+   ]
+  },
+  {
+   "slug": "vite-fastapi-starter",
+   "name": "Vite + FastAPI Starter",
+   "what": "A monorepo with a Vite frontend and a public FastAPI backend",
+   "kind": "Template",
+   "capability": "Python backend with a JavaScript frontend",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/react/vite-fastapi-starter"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/vite-fastapi"
+    }
+   ]
+  },
+  {
+   "slug": "next-js-fastapi-bindings-starter",
+   "name": "Next.js + FastAPI + Bindings Starter",
+   "what": "A Next.js frontend calling a private FastAPI backend",
+   "kind": "Template",
+   "capability": "Python backend with a JavaScript frontend",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/next.js/next-js-fastapi-bindings-starter"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/nextjs-fastapi-bindings"
+    }
+   ]
+  },
+  {
+   "slug": "next-js-fastapi-chat-app-starter",
+   "name": "Next.js + FastAPI chat app starter",
+   "what": "Next.js at the root and FastAPI under /api, with Aurora Postgres in production",
+   "kind": "Labs repo",
+   "capability": "Python backend with a JavaScript frontend",
+   "links": [
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel-labs/nextjs-fastapi-chat-app-starter"
+    }
+   ]
+  },
+  {
+   "slug": "full-stack-service-previews",
+   "name": "Full-stack service previews",
+   "what": "Next.js, FastAPI and a containerized Go service in one deployment, previewed together",
+   "kind": "Labs repo",
+   "capability": "Python backend with a JavaScript frontend",
+   "links": [
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel-labs/full-stack-service-previews"
+    }
+   ]
+  },
+  {
+   "slug": "fastapi-ai-chat-with-websocket",
+   "name": "FastAPI AI Chat with WebSocket",
+   "what": "Real-time AI chat with Next.js, FastAPI, WebSockets and the Python AI SDK",
+   "kind": "Template",
+   "capability": "Python backend with a JavaScript frontend",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/next.js/fastapi-ai-chat-with-websocket"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/websockets"
+    }
+   ]
+  },
+  {
+   "slug": "multiplayer-cursors",
+   "name": "Multiplayer cursors",
+   "what": "FastAPI WebSockets behind a Next.js app, using Vercel Services",
+   "kind": "Labs repo",
+   "capability": "Python backend with a JavaScript frontend",
+   "links": [
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel-labs/nextjs-fastapi-multiplayer-cursors"
+    }
+   ]
+  },
+  {
+   "slug": "celery-on-vercel-queues-explainer",
+   "name": "Celery on Vercel Queues explainer",
+   "what": "A Celery task traced from the web function through Vercel Queues to a separate worker function",
+   "kind": "Explainer demo",
+   "capability": "Background tasks and queues",
+   "links": [
+    {
+     "label": "Live",
+     "url": "https://python-on-vercel-celery.vercel.zone"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/remiconnesson/python-on-vercel/tree/main/03-celery"
+    }
+   ]
+  },
+  {
+   "slug": "python-celery-starter",
+   "name": "Python Celery Starter",
+   "what": "Celery workers running on Vercel Queues",
+   "kind": "Template",
+   "capability": "Background tasks and queues",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/python-celery-starter"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/celery"
+    }
+   ]
+  },
+  {
+   "slug": "python-queue-subscribers-starter",
+   "name": "Python Queue Subscribers Starter",
+   "what": "Python background tasks with Vercel Queues",
+   "kind": "Template",
+   "capability": "Background tasks and queues",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/python-queue-subscribers-starter"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/python/queue-subscribers"
+    }
+   ]
+  },
+  {
+   "slug": "serverless-celery-proof-of-concept",
+   "name": "Serverless Celery proof of concept",
+   "what": "Ricardo Gonzalez's Celery on Vercel Queues, built before the official support",
+   "kind": "Field demo",
+   "capability": "Background tasks and queues",
+   "links": [
+    {
+     "label": "Live",
+     "url": "https://celery-service.vercel.app/"
+    },
+    {
+     "label": "Slack",
+     "url": "https://vercel.enterprise.slack.com/archives/C0AAMF0G970/p1772760280119659"
+    }
+   ]
+  },
+  {
+   "slug": "django-celery-backend",
+   "name": "Django + Celery backend",
+   "what": "A Django backend with Celery tasks, built for a customer evaluation",
+   "kind": "Field demo",
+   "capability": "Background tasks and queues",
+   "links": [
+    {
+     "label": "Live, needs Vercel login",
+     "url": "https://daylit-django-backend.playground-vercel.tools"
+    },
+    {
+     "label": "Slack",
+     "url": "https://vercel.enterprise.slack.com/archives/C0BQY1W5ULB/p1789047934648209"
+    }
+   ]
+  },
+  {
+   "slug": "ai-sdk-for-python-explainer",
+   "name": "AI SDK for Python explainer",
+   "what": "The ai package calling AI Gateway with the deployment's OIDC token, streaming the protocol useChat reads",
+   "kind": "Explainer demo",
+   "capability": "AI with Python",
+   "links": [
+    {
+     "label": "Live",
+     "url": "https://python-on-vercel-ai-sdk.vercel.zone"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/remiconnesson/python-on-vercel/tree/main/04-ai-sdk"
+    }
+   ]
+  },
+  {
+   "slug": "ai-sdk-for-python",
+   "name": "AI SDK for Python",
+   "what": "The SDK itself, with examples such as a FastAPI and Vite app that uses useChat",
+   "kind": "Labs repo",
+   "capability": "AI with Python",
+   "links": [
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel-labs/ai-python"
+    },
+    {
+     "label": "Web agent example",
+     "url": "https://github.com/vercel-labs/ai-python/tree/main/examples/apps/web_agent"
+    }
+   ]
+  },
+  {
+   "slug": "ai-sdk-with-flask",
+   "name": "AI SDK with Flask",
+   "what": "Flask and the AI SDK on the Python runtime",
+   "kind": "Template",
+   "capability": "AI with Python",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/ai-sdk-with-flask"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel-labs/ai-sdk-flask"
+    }
+   ]
+  },
+  {
+   "slug": "python-streaming-to-usechat",
+   "name": "Python streaming to useChat",
+   "what": "A FastAPI backend streaming chat to useChat, the pattern from before the ai package",
+   "kind": "Labs repo",
+   "capability": "AI with Python",
+   "links": [
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel-labs/ai-sdk-preview-python-streaming"
+    }
+   ]
+  },
+  {
+   "slug": "tau-agent",
+   "name": "tau agent",
+   "what": "A coding agent built on the AI SDK for Python",
+   "kind": "Labs repo",
+   "capability": "AI with Python",
+   "links": [
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel-labs/tau-agent"
+    }
+   ]
+  },
+  {
+   "slug": "notebook-factory",
+   "name": "Notebook Factory",
+   "what": "Yury's hackathon demo of generated notebooks",
+   "kind": "Field demo",
+   "capability": "AI with Python",
+   "links": [
+    {
+     "label": "Live",
+     "url": "https://notebooks.sh"
+    },
+    {
+     "label": "Slack",
+     "url": "https://vercel.enterprise.slack.com/archives/C0A0MJUMCR5/p1790990772824329"
+    }
+   ]
+  },
+  {
+   "slug": "python-framework-comparison",
+   "name": "Python framework comparison",
+   "what": "Andrey's side-by-side of Python AI frameworks on Vercel",
+   "kind": "Field demo",
+   "capability": "AI with Python",
+   "links": [
+    {
+     "label": "Live, needs Vercel login",
+     "url": "https://py-eco.playground-vercel.tools/"
+    },
+    {
+     "label": "Slack",
+     "url": "https://vercel.enterprise.slack.com/archives/C0A8XBN2F45/p1785452276109459"
+    }
+   ]
+  },
+  {
+   "slug": "websockets-with-the-ai-sdk-for-python",
+   "name": "WebSockets with the AI SDK for Python",
+   "what": "A WebSocket example using the Python AI SDK",
+   "kind": "Field demo",
+   "capability": "AI with Python",
+   "links": [
+    {
+     "label": "Slack",
+     "url": "https://vercel.enterprise.slack.com/archives/C09P6P21S06/p1781817182190469"
+    }
+   ]
+  },
+  {
+   "slug": "europython-talk",
+   "name": "EuroPython talk",
+   "what": "Yury's slides on Python at Vercel",
+   "kind": "Talk or recording",
+   "capability": "AI with Python",
+   "links": [
+    {
+     "label": "Slack",
+     "url": "https://vercel.enterprise.slack.com/archives/C0A0MJUMCR5/p1785198848431839"
+    }
+   ]
+  },
+  {
+   "slug": "flask-alt-text-generator",
+   "name": "Flask Alt Text Generator",
+   "what": "A community Flask API that describes any image",
+   "kind": "Template",
+   "capability": "AI with Python",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/python/flask-alt-text-generator"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/Nutlope/alt-text-generator"
+    }
+   ]
+  },
+  {
+   "slug": "workflow-explainer",
+   "name": "Workflow explainer",
+   "what": "A Python workflow that retries a failed step, then sleeps with no function running, plotted on a real clock",
+   "kind": "Explainer demo",
+   "capability": "Durable workflows",
+   "links": [
+    {
+     "label": "Live",
+     "url": "https://python-on-vercel-workflow.vercel.zone"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/remiconnesson/python-on-vercel/tree/main/05-workflow"
+    }
+   ]
+  },
+  {
+   "slug": "seal",
+   "name": "seal",
+   "what": "A durable agent where every run is a Vercel workflow, built with ai and vercel.workflow",
+   "kind": "Labs repo",
+   "capability": "Durable workflows",
+   "links": [
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel-labs/seal"
+    }
+   ]
+  },
+  {
+   "slug": "durable-agent-workflows-example",
+   "name": "Durable agent workflows example",
+   "what": "An agent loop inside a workflow, with model calls as durable steps",
+   "kind": "Labs repo",
+   "capability": "Durable workflows",
+   "links": [
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel-labs/ai-python/tree/main/examples/apps/durable_agent_workflows"
+    }
+   ]
+  },
+  {
+   "slug": "workflow-python-test-app",
+   "name": "Workflow Python test app",
+   "what": "The Workflow team's own Python app, the most complete API reference in code",
+   "kind": "Labs repo",
+   "capability": "Durable workflows",
+   "links": [
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/workflow/tree/main/workbench/python"
+    }
+   ]
+  },
+  {
+   "slug": "langgraph-explainer",
+   "name": "LangGraph explainer",
+   "what": "A LangGraph agent in one function, streaming each node over SSE, with thread memory",
+   "kind": "Explainer demo",
+   "capability": "Agents",
+   "links": [
+    {
+     "label": "Live",
+     "url": "https://python-on-vercel-langgraph.vercel.zone"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/remiconnesson/python-on-vercel/tree/main/06-langgraph"
+    }
+   ]
+  },
+  {
+   "slug": "langgraph-workflow-explainer",
+   "name": "LangGraph + Workflow explainer",
+   "what": "A LangGraph graph inside a durable workflow that pauses for human approval",
+   "kind": "Explainer demo",
+   "capability": "Agents",
+   "links": [
+    {
+     "label": "Live",
+     "url": "https://python-on-vercel-langgraph-workflow.vercel.zone"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/remiconnesson/python-on-vercel/tree/main/07-langgraph-workflow"
+    }
+   ]
+  },
+  {
+   "slug": "openai-agents-sdk-with-fastapi",
+   "name": "OpenAI Agents SDK with FastAPI",
+   "what": "OpenAI Agents behind FastAPI, running code in Vercel Sandbox",
+   "kind": "Template",
+   "capability": "Agents",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/template/openai-agents-sdk-with-vercel-sandbox-fastapi"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel-labs/openai-agents-fastapi-starter"
+    }
+   ]
+  },
+  {
+   "slug": "openai-agents-api-with-fastapi",
+   "name": "OpenAI Agents API with FastAPI",
+   "what": "An OpenAI Agents API on FastAPI with Vercel Sandbox",
+   "kind": "Labs repo",
+   "capability": "Agents",
+   "links": [
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel-labs/openai-agents-api-fastapi"
+    }
+   ]
+  },
+  {
+   "slug": "fastmcp-explainer",
+   "name": "FastMCP explainer",
+   "what": "A FastMCP server that Cursor and Claude can call: tools, a resource, a prompt and streamed progress, tested live from the page",
+   "kind": "Explainer demo",
+   "capability": "MCP servers",
+   "links": [
+    {
+     "label": "Live",
+     "url": "https://python-on-vercel-fastmcp.vercel.zone"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/remiconnesson/python-on-vercel/tree/main/09-fastmcp"
+    }
+   ]
+  },
+  {
+   "slug": "containers-explainer",
+   "name": "Containers explainer",
+   "what": "A Dockerfile with an apt package running as a Vercel Function, proven by PID 1 and the image's OS",
+   "kind": "Explainer demo",
+   "capability": "Containers",
+   "links": [
+    {
+     "label": "Live",
+     "url": "https://python-on-vercel-containers.vercel.zone"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/remiconnesson/python-on-vercel/tree/main/08-containers"
+    }
+   ]
+  },
+  {
+   "slug": "container-images",
+   "name": "Container Images",
+   "what": "Containerized services built from their own Dockerfiles behind a single domain",
+   "kind": "Template",
+   "capability": "Containers",
+   "links": [
+    {
+     "label": "Template",
+     "url": "https://vercel.com/templates/container-images/container-images-demo"
+    },
+    {
+     "label": "Live",
+     "url": "https://container-images-demo.labs.vercel.dev"
+    },
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel/examples/tree/main/container-images/demo"
+    }
+   ]
+  },
+  {
+   "slug": "ocr-with-fastapi-in-a-container",
+   "name": "OCR with FastAPI in a container",
+   "what": "A FastAPI backend in a container next to Next.js, using Vercel Services",
+   "kind": "Labs repo",
+   "capability": "Containers",
+   "links": [
+    {
+     "label": "Code",
+     "url": "https://github.com/vercel-labs/ocr-fastapi-nextjs-docker"
+    }
+   ]
+  },
+  {
+   "slug": "celery-daemon-explainer",
+   "name": "Celery daemon explainer",
+   "what": "A classic celery worker running always-on as a Vercel Daemon, fed through Redis. Private beta, do not show customers",
+   "kind": "Explainer demo",
+   "capability": "Always-on workers (internal)",
+   "links": [
+    {
+     "label": "Live",
+     "url": "https://python-on-vercel-celery-daemon.vercel.zone"
+    },
+    {
+     "label": "Code, private",
+     "url": "https://github.com/vercel-labs/celery-daemon-on-vercel"
+    }
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "customer_says": "Can you run our Python API?",
+   "show_first": "FastAPI explainer",
+   "url": "https://python-on-vercel-fastapi.vercel.zone",
+   "then": "Django explainer, then the FastAPI, Flask or Django template that matches their stack"
+  },
+  {
+   "customer_says": "We already have Docker images",
+   "show_first": "Containers explainer",
+   "url": "https://python-on-vercel-containers.vercel.zone",
+   "then": "Container Images template, OCR with FastAPI in a container"
+  },
+  {
+   "customer_says": "We run Celery or other background jobs",
+   "show_first": "Celery on Vercel Queues explainer",
+   "url": "https://python-on-vercel-celery.vercel.zone",
+   "then": "Python Celery Starter. For always-on workers, the Celery daemon explainer (internal, private beta)"
+  },
+  {
+   "customer_says": "Our AI backend is Python and the UI is React",
+   "show_first": "AI SDK for Python explainer",
+   "url": "https://python-on-vercel-ai-sdk.vercel.zone",
+   "then": "AI SDK for Python web agent example, Vite + FastAPI Starter"
+  },
+  {
+   "customer_says": "We build agents with LangGraph",
+   "show_first": "LangGraph explainer",
+   "url": "https://python-on-vercel-langgraph.vercel.zone",
+   "then": "LangGraph + Workflow explainer for long runs and human approval"
+  },
+  {
+   "customer_says": "We use Step Functions or long-running jobs",
+   "show_first": "Workflow explainer",
+   "url": "https://python-on-vercel-workflow.vercel.zone",
+   "then": "seal, the durable agent workflows example"
+  },
+  {
+   "customer_says": "We want to give our agents tools over MCP",
+   "show_first": "FastMCP explainer",
+   "url": "https://python-on-vercel-fastmcp.vercel.zone",
+   "then": "FastMCP's HTTP deployment guide at gofastmcp.com/deployment/http"
+  },
+  {
+   "customer_says": "We need WebSockets or real-time",
+   "show_first": "FastAPI AI Chat with WebSocket",
+   "url": "https://vercel.com/templates/next.js/fastapi-ai-chat-with-websocket",
+   "then": "Multiplayer cursors"
+  },
+  {
+   "customer_says": "Our agents must run untrusted code",
+   "show_first": "OpenAI Agents SDK with FastAPI",
+   "url": "https://vercel.com/templates/template/openai-agents-sdk-with-vercel-sandbox-fastapi",
+   "then": "OpenAI Agents API with FastAPI"
+  }
+ ]
+}
