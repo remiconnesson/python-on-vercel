@@ -1,17 +1,29 @@
-from fastapi import FastAPI, HTTPException
+import os
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from vercel import workflow
 
 from workflows import process_order
 
 app = FastAPI(title="Vercel Workflow (Python) demo")
+INDEX_HTML = (Path(__file__).parent / "index.html").read_text()
 
 
 @app.get("/")
-def index():
+def index(request: Request):
+    # Browsers get the visual explainer (index.html); curl and scripts get JSON.
+    if "text/html" in request.headers.get("accept", ""):
+        return HTMLResponse(INDEX_HTML)
     return {
         "demo": "Vercel Workflow with the Python SDK (vercel-workflow)",
         "workflow": "process_order: reserve_inventory -> charge_card (retried once) "
         "-> durable sleep -> send_receipt",
+        # Which storage and queue the SDK picked: "vercel" when deployed
+        # (VERCEL_DEPLOYMENT_ID is set), "local" otherwise (.workflow-data/).
+        "world": os.environ.get("WORKFLOW_TARGET_WORLD")
+        or ("vercel" if os.environ.get("VERCEL_DEPLOYMENT_ID") else "local"),
         "endpoints": {
             "POST /api/runs?order_id=order_123&delay_seconds=10": "start a run",
             "GET /api/runs/{run_id}": "run status, plus the result once completed",

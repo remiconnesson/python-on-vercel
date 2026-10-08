@@ -6,6 +6,7 @@ On Vercel, `[[tool.vercel.workflows]]` in `pyproject.toml` is the only extra con
 ```
 05-workflow/
 ├── main.py          # FastAPI app: GET /, POST /api/runs (start), GET /api/runs/{id} (status/result)
+├── index.html       # the visual explainer served at `/` to browsers
 ├── workflows.py     # Workflows registry + 3 steps + process_order workflow with a durable sleep
 ├── pyproject.toml   # deps + [[tool.vercel.workflows]] entrypoint = "workflows:wf"
 ├── uv.lock          # locked deps (uv lock)
@@ -29,13 +30,19 @@ Local-only caveat: that queue lives in memory. If you restart the server while a
 ```bash
 BASE=http://localhost:8000   # or https://<your-deployment>.vercel.app
 
-curl $BASE/                                                          # endpoint listing
+curl $BASE/                                                          # endpoint listing + "world": "local" or "vercel"
 curl -X POST "$BASE/api/runs?order_id=order_42&delay_seconds=10"     # -> {"run_id": "wrun_...", "status_url": ...}
 curl $BASE/api/runs/wrun_XXXXXXXX                                    # -> {"status": "running"} ... then:
-# {"run_id":"wrun_...","status":"completed","result":{"steps":[...],"slept_at":"...","woke_at":"..."}}
+# {"run_id":"wrun_...","status":"completed","result":{
+#   "steps":[{"name":"reserve_inventory","result":"reserved items for order_42","attempt":1,"first_attempt_at":"...","ran_at":"..."},
+#            {"name":"charge_card","result":"charged card for order_42","attempt":2,"first_attempt_at":"...","ran_at":"..."},
+#            {"name":"send_receipt","result":"receipt for order_42 sent","attempt":1,"first_attempt_at":"...","ran_at":"..."}],
+#   "started_at":"...","slept_at":"...","woke_at":"...","delay_seconds":10}}
 ```
 
-`slept_at` and `woke_at` should be about `delay_seconds` apart.
+Each step reports its own `attempt` (from `workflow.get_step_metadata()`), when its first attempt began, and when the attempt that succeeded ran. `charge_card` shows `attempt: 2`, about a second after its first attempt. `slept_at` and `woke_at` come from `workflow.now()`, the time of the latest event in the run's log, and should be about `delay_seconds` apart.
+
+Open the app in a browser for a live explainer. It starts a run, polls its status, and draws the steps, the retry and the sleep on a real time axis from these timestamps. It also shows how each wake-up replays the workflow body. If you reload the page mid-sleep, it picks the run up again. `curl` on `/` still gets JSON.
 
 ## Deploy notes
 

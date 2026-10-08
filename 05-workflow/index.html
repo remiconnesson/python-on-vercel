@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python Workflow on Vercel</title>
+<meta name="description" content="A durable Python workflow on Vercel that retries a failed step and sleeps with no function running, started and timed live from this page.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" referrerpolicy="no-referrer">
+<link href="https://vercel.com/geist/vercel-brand.css" rel="stylesheet">
+<style>
+  /* Page-owned layout and marks only. Everything else comes from the published foundation. */
+  .vbg-custom-route { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--vbg-space-6); }
+  ol.vbg-custom-route > li, ol.vbg-custom-route > li + li { margin: 0; min-width: 0; display: grid; gap: var(--vbg-space-2); align-content: start; padding-top: var(--vbg-space-4); border-top: 1px solid var(--vbg-border-strong); }
+  .vbg-custom-route > li > * { margin: 0; }
+  .vbg-custom-controls { display: flex; flex-wrap: wrap; gap: var(--vbg-space-3); align-items: end; }
+  .vbg-custom-controls > * { margin: 0; }
+  .vbg-custom-proof { display: grid; gap: var(--vbg-space-8); min-width: 0; }
+  .vbg-custom-proof > * { margin: 0; min-width: 0; }
+  .vbg-custom-run { display: grid; gap: var(--vbg-space-2); align-content: start; min-width: 0; }
+  .vbg-custom-run > * { margin: 0; }
+  .vbg-custom-proof > [hidden], .vbg-custom-run > [hidden] { display: none; }
+  .vbg-custom-measure { max-width: 68ch; }
+  .vbg-custom-measure > * { margin: 0; }
+  .vbg-custom-timeline { display: block; width: 100%; height: auto; }
+  .vbg-viz-done { fill: currentColor; stroke: none; }
+  .vbg-viz-failed { fill: transparent; stroke: var(--vbg-color-error); stroke-width: 2; }
+  .vbg-viz-retry { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-dasharray: 3 4; }
+  .vbg-viz-sleep { fill: transparent; stroke: currentColor; stroke-width: 1.5; }
+  .vbg-viz-poll { stroke: currentColor; stroke-width: 1.5; }
+  @media (max-width: 960px) {
+    .vbg-custom-route { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 560px) {
+    .vbg-custom-route { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body class="vbg-report">
+<div class="vbg-shell">
+  <a class="vbg-skip-link" href="#main">Skip to content</a>
+  <header class="vbg-header">
+    <div class="vbg-masthead">
+      <span class="vbg-identity"><span class="vbg-wordmark" role="img" aria-label="Vercel"></span></span>
+      <div class="vbg-document-meta">
+        <span class="vbg-context">Python on Vercel, demo 5 of 8</span>
+        <span class="vbg-state">Live deployment</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="vbg-opening" aria-labelledby="title">
+      <div class="vbg-opening-claim">
+        <h1 class="vbg-title" id="title">This Python workflow retries a failed step, then sleeps with no function running</h1>
+        <div class="vbg-custom-measure"><p class="vbg-lede">This page is served by the FastAPI app it describes, built with <code class="vbg-mono">vercel-workflow</code>, the Python SDK for Vercel Workflow (in beta). Start a run: it reserves inventory, charges a card that fails on its first attempt, sleeps for as long as you choose, then sends a receipt. Every attempt number and time below is recorded by the workflow as it runs.</p></div>
+      </div>
+      <div class="vbg-opening-proof">
+        <div class="vbg-custom-proof">
+          <form class="vbg-custom-run" id="run-form" novalidate>
+            <div class="vbg-custom-controls">
+              <div class="vbg-field">
+                <label class="vbg-label" for="delay">Sleep length</label>
+                <div class="vbg-unit-field">
+                  <input id="delay" type="number" min="3" max="30" step="1" value="10" inputmode="numeric" aria-describedby="delay-help delay-error">
+                  <span class="vbg-unit-suffix">s</span>
+                </div>
+              </div>
+              <button class="vbg-button" id="run-start" type="submit">Start a run</button>
+            </div>
+            <p class="vbg-helper" id="delay-help">From 3 to 30 seconds. Passed to <code class="vbg-mono">workflow.sleep()</code>.</p>
+            <p class="vbg-error" id="delay-error" hidden></p>
+            <p class="vbg-caption" id="run-status" role="status">No run started from this browser yet.</p>
+          </form>
+          <div class="vbg-stat-strip" id="run-stats" hidden>
+            <div class="vbg-stat">
+              <p class="vbg-stat-label">Run status</p>
+              <p class="vbg-stat-value" id="stat-status">Pending</p>
+              <p class="vbg-stat-detail" id="stat-run">…</p>
+            </div>
+            <div class="vbg-stat">
+              <p class="vbg-stat-label">Card charged on</p>
+              <p class="vbg-stat-value" id="stat-attempt">…</p>
+              <p class="vbg-stat-detail" id="stat-attempt-detail">Reported by the step when the run completes</p>
+            </div>
+            <div class="vbg-stat">
+              <p class="vbg-stat-label">Durable sleep</p>
+              <p class="vbg-stat-value" id="stat-sleep">…</p>
+              <p class="vbg-stat-detail" id="stat-sleep-detail">Measured between events in the run's log</p>
+            </div>
+            <div class="vbg-stat">
+              <p class="vbg-stat-label">Start request</p>
+              <p class="vbg-stat-value" id="stat-post">…</p>
+              <p class="vbg-stat-detail" id="stat-post-detail">Time for <code class="vbg-mono">POST /api/runs</code> to answer</p>
+            </div>
+          </div>
+          <figure class="vbg-chart">
+            <div class="vbg-chart-header">
+              <h2 class="vbg-heading-16" id="timeline-heading">Your run, on a real clock</h2>
+            </div>
+            <div class="vbg-chart-viewport" tabindex="0">
+              <svg class="vbg-custom-timeline" id="timeline" viewBox="0 0 1000 300" role="img" aria-labelledby="timeline-heading timeline-desc">
+                <desc id="timeline-desc">Empty timeline. Start a run to fill it.</desc>
+              </svg>
+            </div>
+            <figcaption class="vbg-caption" id="timeline-caption">Filled dots are attempts that succeeded and the hollow red dot is the attempt that failed. The outlined bar is the sleep. In the last row, each tick is a status check that found the run still running. Step and sleep times come from the run's result, counted from the run's start; status checks use this browser's clock, counted from the start request.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="timeline-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="timeline-title">The failed charge is retried on its own, and the sleep lasts as long as you asked</h2>
+        <p>Each step runs as its own invocation and its return value is recorded in the run's event log. When <code class="vbg-mono">charge_card</code> raises, the SDK runs it again about a second later. During <code class="vbg-mono">workflow.sleep()</code> no step and no workflow code is running: a delayed queue message wakes the run when the time is up.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Steps and sleep of the last run, with attempts and times</caption>
+          <thead>
+            <tr>
+              <th scope="col">Step</th>
+              <th scope="col" class="vbg-numeric">Attempts</th>
+              <th scope="col" class="vbg-numeric">Started</th>
+              <th scope="col" class="vbg-numeric">Finished</th>
+              <th scope="col" class="vbg-numeric">Took</th>
+              <th scope="col">Finished at, UTC</th>
+            </tr>
+          </thead>
+          <tbody id="step-rows">
+            <tr><td colspan="6">Times appear here when the run completes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="vbg-caption">For a step, started is when its first attempt began and finished is when the successful attempt ran. Both are read inside the step with <code class="vbg-mono">workflow.get_step_metadata()</code> and the system clock. The sleep's times are the events that began and ended it.</p>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="replay-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="replay-title">Every wake-up replays the workflow from the top, and finished steps don't run again</h2>
+        <p>The run wakes up when it starts, when a step finishes and when the sleep ends. Each time, the body of <code class="vbg-mono">process_order</code> runs again from its first line. A step that already finished hands back the result stored in the event log instead of running. That is why the body has to be deterministic and reads the time with <code class="vbg-mono">workflow.now()</code> rather than the system clock.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">What woke the run up, and what the replayed workflow body did each time</caption>
+          <thead>
+            <tr>
+              <th scope="col">Woke up because</th>
+              <th scope="col" class="vbg-numeric">At</th>
+              <th scope="col">What the replayed body did</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">The run started</th>
+              <td class="vbg-numeric" id="wake-0">…</td>
+              <td>Reached <code class="vbg-mono">reserve_inventory</code>, which has no stored result, so it queued the step and stopped</td>
+            </tr>
+            <tr>
+              <th scope="row"><code class="vbg-mono">reserve_inventory</code> finished</th>
+              <td class="vbg-numeric" id="wake-1">…</td>
+              <td>Got the stored result of <code class="vbg-mono">reserve_inventory</code> without running it, then queued <code class="vbg-mono">charge_card</code></td>
+            </tr>
+            <tr>
+              <th scope="row"><code class="vbg-mono">charge_card</code> finished</th>
+              <td class="vbg-numeric" id="wake-2">…</td>
+              <td>Got both stored results, read <code class="vbg-mono">workflow.now()</code> as the sleep start, recorded a <span id="wake-sleep-len">10</span> second sleep and stopped</td>
+            </tr>
+            <tr>
+              <th scope="row">The sleep ended</th>
+              <td class="vbg-numeric" id="wake-3">…</td>
+              <td>Got both stored results again, found the sleep complete, then queued <code class="vbg-mono">send_receipt</code></td>
+            </tr>
+            <tr>
+              <th scope="row"><code class="vbg-mono">send_receipt</code> finished</th>
+              <td class="vbg-numeric" id="wake-4">…</td>
+              <td>Got all three stored results and returned them, so the run completed</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p id="replay-proof">Start a run to check this against real times. The result is built on the last wake-up, so if a step ran again on every replay its time in the result would be late. A stored result keeps the time of the step's only successful run.</p>
+        <p class="vbg-caption">The failed first attempt of <code class="vbg-mono">charge_card</code> is not a wake-up. A step that raises is retried by delivering its queue message again, about one second later by default and up to 3 retries, without replaying the body.</p>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="how-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="how-title">Vercel deploys the workflow as its own queue-triggered function</h2>
+        <p>The project contains <code class="vbg-mono">main.py</code>, <code class="vbg-mono">workflows.py</code>, <code class="vbg-mono">pyproject.toml</code> and <code class="vbg-mono">uv.lock</code>. There is no <code class="vbg-mono">vercel.json</code> and no environment variable to set. One table in <code class="vbg-mono">pyproject.toml</code> adds the second function.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Build decisions and the file each one came from</caption>
+          <thead>
+            <tr><th scope="col">Decision</th><th scope="col">Read from</th><th scope="col">Result</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Web app</th><td><code class="vbg-mono">app</code> in <code class="vbg-mono">main.py</code></td><td>FastAPI, deployed as one function that serves this page and the API</td></tr>
+            <tr><th scope="row">Workflows</th><td><code class="vbg-mono">[[tool.vercel.workflows]]</code> in <code class="vbg-mono">pyproject.toml</code></td><td>A second function, <code class="vbg-mono">_py_workflows/…</code>, that serves the <code class="vbg-mono">workflows:wf</code> registry and is triggered by Vercel Queues instead of HTTP</td></tr>
+            <tr><th scope="row">Queue topic</th><td>The <code class="vbg-mono">wf</code> registry, imported at build time</td><td>One topic per workflow, <code class="vbg-mono">__wkf_workflow_*</code>, read by consumer group <code class="vbg-mono">default</code></td></tr>
+            <tr><th scope="row">Serving mode</th><td><code class="vbg-mono">vercel-workflow</code> as a direct dependency</td><td>Queue mode. Without the direct dependency the builder falls back to a legacy mode</td></tr>
+            <tr><th scope="row">State and auth</th><td>Nothing to configure</td><td>A managed event log and Vercel Queues, reached with the deployment's built-in OIDC token</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3 class="vbg-heading-20">The path of your last run</h3>
+      <div class="vbg-span-12">
+      <ol class="vbg-custom-route">
+        <li>
+          <p class="vbg-label">This browser</p>
+          <p>Sends <code class="vbg-mono">POST /api/runs</code>, then <code class="vbg-mono">GET /api/runs/{id}</code> once a second until the run finishes.</p>
+        </li>
+        <li>
+          <p class="vbg-label">Web function</p>
+          <p>Runs FastAPI <span id="route-where">in its region</span>. <code class="vbg-mono">workflow.start()</code> records the run, queues it and answers in <span id="route-post">a few milliseconds</span>.</p>
+        </li>
+        <li>
+          <p class="vbg-label">Vercel Queues</p>
+          <p>Delivers one message per step, the retry of <code class="vbg-mono">charge_card</code>, and a delayed message that ends the sleep.</p>
+        </li>
+        <li>
+          <p class="vbg-label">Workflow function</p>
+          <p>Replays <code class="vbg-mono">process_order</code> and runs each step as its own invocation, writing every result to the event log.</p>
+        </li>
+      </ol>
+      </div>
+      <p class="vbg-caption" id="route-caption">The region and edge location come from the <code class="vbg-mono">x-vercel-id</code> response header.</p>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="audit-title">
+      <h2 class="vbg-heading-24" id="audit-title">Endpoints and limits</h2>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Endpoints served by this app</caption>
+          <thead>
+            <tr><th scope="col">Endpoint</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><code class="vbg-mono">GET /</code></th><td>This page for browsers. Everything else gets JSON naming the workflow and the SDK's storage, <code class="vbg-mono">vercel</code> or <code class="vbg-mono">local</code></td></tr>
+            <tr><th scope="row"><code class="vbg-mono">POST /api/runs?delay_seconds=10</code></th><td>Starts a run and returns its id right away. Also takes <code class="vbg-mono">order_id</code></td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /api/runs/{run_id}</code></th><td>The run's status, plus the result with each step's attempt and times once it completes</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p>The Python SDK is in beta, and its API still changes between minor versions. A step's side effects repeat on every retry, so use <code class="vbg-mono">get_step_metadata().step_id</code> as an idempotency key. A sleep can last days; waits longer than 23 hours are chained. Run data is kept for 1 day after completion on Hobby, 7 on Pro and 30 on Enterprise, after which <code class="vbg-mono">GET /api/runs/{run_id}</code> returns 404. Run locally, the SDK keeps the queue in memory, so restarting the server during a sleep leaves the run stuck as running.</p>
+        <ul class="vbg-sources">
+          <li><a href="https://workflow-sdk.dev/docs/getting-started/python">Workflow SDK for Python</a></li>
+          <li><a href="https://vercel.com/docs/workflows">Vercel Workflows</a></li>
+          <li><a href="https://vercel.com/docs/workflows/pricing">Workflow pricing and retention</a></li>
+          <li><a href="https://pypi.org/project/vercel-workflow/"><code class="vbg-mono">vercel-workflow</code> on PyPI</a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vbg-footer">
+    <span class="vbg-logo" role="img" aria-label="Vercel"></span>
+    <span>Source: <code class="vbg-mono">python-on-vercel-demos/05-workflow</code></span>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SVG = "http://www.w3.org/2000/svg";
+const STORE = "workflow-demo-last-run";
+const POLL_MS = 1000;
+
+// The x-vercel-id header reads "<edge>::<function region>::<id>" for function responses.
+function parseVercelId(value) {
+  if (!value) return { edge: "local", region: null };
+  const parts = value.split("::");
+  return { edge: parts[0], region: parts.length > 2 ? parts[1] : null };
+}
+
+async function callJSON(path, init = {}) {
+  const started = performance.now();
+  const res = await fetch(path, { ...init, headers: { Accept: "application/json", ...(init.headers || {}) } });
+  const ms = performance.now() - started;
+  const text = await res.text();
+  let body;
+  try { body = JSON.parse(text); } catch { body = text; }
+  return { status: res.status, ms, body, route: parseVercelId(res.headers.get("x-vercel-id")) };
+}
+
+function cell(row, text, { numeric = false, mono = false, header = false } = {}) {
+  const el = document.createElement(header ? "th" : "td");
+  if (header) el.scope = "row";
+  if (numeric) el.className = "vbg-numeric";
+  if (mono) {
+    const code = document.createElement("span");
+    code.className = "vbg-mono";
+    code.textContent = text;
+    el.append(code);
+  } else {
+    el.textContent = text;
+  }
+  row.append(el);
+}
+
+function svgEl(name, attrs, text) {
+  const el = document.createElementNS(SVG, name);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+// Fill an element from parts: plain strings, or { code: "identifier" } for Geist Mono.
+function rich(el, parts) {
+  el.replaceChildren(...parts.map((part) => {
+    if (typeof part === "string") return document.createTextNode(part);
+    const code = document.createElement("code");
+    code.className = "vbg-mono";
+    code.textContent = part.code;
+    return code;
+  }));
+}
+
+function setMono(el, text) {
+  const code = document.createElement("span");
+  code.className = "vbg-mono";
+  code.textContent = text;
+  el.replaceChildren(code);
+}
+
+// Python's isoformat() can carry microseconds; keep them instead of trusting Date.parse.
+function toMs(iso) {
+  const m = /^(.*T\d{2}:\d{2}:\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/.exec(iso);
+  if (!m) return Date.parse(iso);
+  return Date.parse(m[1] + (m[3] || "Z")) + (m[2] ? Number("0" + m[2]) * 1000 : 0);
+}
+const clockUTC = (ms) => new Date(ms).toISOString().slice(11, 23);
+const plus = (s) => `+${s.toFixed(3)} s`;
+
+function store(value) {
+  try {
+    if (value) localStorage.setItem(STORE, JSON.stringify(value));
+    else localStorage.removeItem(STORE);
+  } catch { /* storage unavailable: the page still works, it just can't resume */ }
+}
+function restore() {
+  try { return JSON.parse(localStorage.getItem(STORE) || "null"); } catch { return null; }
+}
+
+const state = { run: null, polls: [], status: null, result: null, timer: null, world: null };
+
+// Turn the run's result into offsets from the moment the run started (server clock).
+function analyze(result) {
+  const t0 = toMs(result.started_at);
+  const at = (iso) => (toMs(iso) - t0) / 1000;
+  const byName = Object.fromEntries(result.steps.map((s) => [s.name, s]));
+  const step = (name) => {
+    const s = byName[name];
+    return { name, attempt: s.attempt, first: at(s.first_attempt_at), ran: at(s.ran_at), ranMs: toMs(s.ran_at) };
+  };
+  const reserve = step("reserve_inventory");
+  const charge = step("charge_card");
+  const receipt = step("send_receipt");
+  const sleep = { start: at(result.slept_at), end: at(result.woke_at), endMs: toMs(result.woke_at), requested: result.delay_seconds };
+  return { reserve, charge, receipt, sleep, total: receipt.ran };
+}
+
+// Timeline, drawn in CSS pixels so labels keep their size on any screen.
+const LANES = [
+  { key: "reserve", label: "reserve_inventory", mono: true },
+  { key: "charge", label: "charge_card", mono: true },
+  { key: "sleep", label: "workflow.sleep()", mono: true },
+  { key: "receipt", label: "send_receipt", mono: true },
+  { key: "polls", label: "Status checks from this browser", mono: false },
+];
+function niceStep(span, maxTicks) {
+  for (const s of [0.5, 1, 2, 5, 10, 15, 30, 60]) if (span / s <= maxTicks) return s;
+  return 120;
+}
+
+function laneSummary(key, a, run, drawn) {
+  if (key === "polls") {
+    if (!run) return "";
+    const later = state.polls.length - drawn.length;
+    const running = drawn.filter((p) => p.status !== "completed").length;
+    const parts = [];
+    if (running) parts.push(`${running} running`);
+    if (drawn.some((p) => p.status === "completed")) parts.push(running ? "then completed" : "completed");
+    if (later) parts.push(`${later} after a reload, not drawn`);
+    return parts.length ? parts.join(", ") : "none yet";
+  }
+  if (!a) return run ? "waiting for the result" : "";
+  if (key === "reserve") return `attempt ${a.reserve.attempt} at ${plus(a.reserve.ran)}`;
+  if (key === "charge") return `${a.charge.attempt} attempts, ${(a.charge.ran - a.charge.first).toFixed(3)} s apart`;
+  if (key === "sleep") return `${(a.sleep.end - a.sleep.start).toFixed(3)} s, asked for ${a.sleep.requested} s`;
+  if (key === "receipt") return `attempt ${a.receipt.attempt} at ${plus(a.receipt.ran)}`;
+  return "";
+}
+
+function drawMarks(svg, key, a, drawn, x, markY) {
+  if (key === "polls") {
+    for (const p of drawn) {
+      if (p.status === "completed") svg.append(svgEl("circle", { class: "vbg-viz-done", cx: x(p.t), cy: markY, r: 4 }));
+      else svg.append(svgEl("line", { class: "vbg-viz-poll", x1: x(p.t), x2: x(p.t), y1: markY - 6, y2: markY + 6 }));
+    }
+    return;
+  }
+  if (!a) return;
+  if (key === "reserve") svg.append(svgEl("circle", { class: "vbg-viz-done", cx: x(a.reserve.ran), cy: markY, r: 5 }));
+  if (key === "charge") {
+    svg.append(svgEl("line", { class: "vbg-viz-retry", x1: x(a.charge.first) + 6, x2: x(a.charge.ran) - 6, y1: markY, y2: markY }));
+    svg.append(svgEl("circle", { class: "vbg-viz-failed", cx: x(a.charge.first), cy: markY, r: 5 }));
+    svg.append(svgEl("circle", { class: "vbg-viz-done", cx: x(a.charge.ran), cy: markY, r: 5 }));
+  }
+  if (key === "sleep") {
+    svg.append(svgEl("rect", { class: "vbg-viz-sleep", x: x(a.sleep.start), y: markY - 7, width: Math.max(2, x(a.sleep.end) - x(a.sleep.start)), height: 14, rx: 2 }));
+  }
+  if (key === "receipt") svg.append(svgEl("circle", { class: "vbg-viz-done", cx: x(a.receipt.ran), cy: markY, r: 5 }));
+}
+
+function drawTimeline() {
+  const svg = $("timeline");
+  const W = Math.max(280, Math.round(svg.parentElement.clientWidth || 1000));
+  svg.setAttribute("viewBox", `0 0 ${W} 400`);
+  svg.querySelectorAll(":scope > :not(desc)").forEach((el) => el.remove());
+
+  const run = state.run;
+  const a = state.result ? analyze(state.result) : null;
+  const delay = run ? run.delay : Number($("delay").value) || 10;
+  let end = a ? a.total : delay + 1.5;
+  const drawn = state.polls.filter((p) => !a || p.t <= a.total + 5);
+  for (const p of drawn) end = Math.max(end, p.t);
+  const span = end * 1.04 + 0.2;
+  const left = 6, right = W - 6;
+  const x = (s) => left + (Math.max(0, s) / span) * (right - left);
+  const tick = niceStep(span, Math.max(3, Math.floor(W / 90)));
+  const ticks = [];
+  for (let s = 0; s <= span + 1e-9; s += tick) ticks.push(s);
+
+  // Each lane: a text row (name left, summary right), then a mark row. Gridlines
+  // only cross mark rows, so no line runs through a label.
+  let y = 4;
+  for (const lane of LANES) {
+    const label = svgEl("text", { class: lane.mono ? "vbg-chart-direct-label vbg-mono" : "vbg-chart-direct-label", x: left, y: y + 16, fill: "currentColor" }, lane.label);
+    svg.append(label);
+    const text = laneSummary(lane.key, a, run, drawn);
+    let markY = y + 36;
+    if (text) {
+      const summary = svgEl("text", { class: "vbg-chart-value", x: right, y: y + 16, "text-anchor": "end", fill: "currentColor" }, text);
+      svg.append(summary);
+      const l = label.getBBox(), r = summary.getBBox();
+      if (l.x + l.width + 16 > r.x) {
+        // Not enough room on one line: put the summary on its own line under the name.
+        summary.setAttribute("x", left);
+        summary.setAttribute("y", y + 36);
+        summary.setAttribute("text-anchor", "start");
+        markY = y + 56;
+      }
+    }
+    // The status lane draws its checks as ticks, so a gridline there would read as one more check.
+    if (lane.key !== "polls") {
+      for (const s of ticks) {
+        svg.append(svgEl("line", { class: "vbg-chart-gridline", x1: x(s), x2: x(s), y1: markY - 11, y2: markY + 11, stroke: "currentColor" }));
+      }
+    }
+    drawMarks(svg, lane.key, a, drawn, x, markY);
+    y = markY + 18;
+  }
+
+  const axisY = y + 4;
+  svg.append(svgEl("line", { class: "vbg-chart-axis", x1: left, x2: right, y1: axisY, y2: axisY, stroke: "currentColor" }));
+  for (const s of ticks) {
+    svg.append(svgEl("line", { class: "vbg-chart-axis", x1: x(s), x2: x(s), y1: axisY, y2: axisY + 5, stroke: "currentColor" }));
+    svg.append(svgEl("text", { class: "vbg-chart-value", x: x(s), y: axisY + 22, "text-anchor": s === 0 ? "start" : x(s) > right - 20 ? "end" : "middle", fill: "currentColor" }, `${s} s`));
+  }
+  svg.setAttribute("viewBox", `0 0 ${W} ${axisY + 30}`);
+
+  $("timeline-desc").textContent = a
+    ? `Run timeline. reserve_inventory ran at ${plus(a.reserve.ran)}. charge_card failed at ${plus(a.charge.first)} and succeeded on attempt ${a.charge.attempt} at ${plus(a.charge.ran)}. The sleep ran from ${plus(a.sleep.start)} to ${plus(a.sleep.end)}. send_receipt ran at ${plus(a.receipt.ran)}.`
+    : run ? `Run in progress. ${state.polls.length} status checks so far, all ${state.status || "pending"}.` : "Empty timeline. Start a run to fill it.";
+}
+
+function drawStepRows(a) {
+  const body = $("step-rows");
+  body.replaceChildren();
+  const rows = [
+    { name: "reserve_inventory", attempts: String(a.reserve.attempt), start: a.reserve.first, end: a.reserve.ran, endMs: a.reserve.ranMs },
+    { name: "charge_card", attempts: String(a.charge.attempt), start: a.charge.first, end: a.charge.ran, endMs: a.charge.ranMs },
+    { name: `workflow.sleep(${a.sleep.requested})`, attempts: "n/a", start: a.sleep.start, end: a.sleep.end, endMs: a.sleep.endMs },
+    { name: "send_receipt", attempts: String(a.receipt.attempt), start: a.receipt.first, end: a.receipt.ran, endMs: a.receipt.ranMs },
+  ];
+  for (const r of rows) {
+    const row = document.createElement("tr");
+    cell(row, r.name, { header: true, mono: true });
+    cell(row, r.attempts, { numeric: true });
+    cell(row, plus(r.start), { numeric: true });
+    cell(row, plus(r.end), { numeric: true });
+    cell(row, `${(r.end - r.start).toFixed(3)} s`, { numeric: true });
+    cell(row, clockUTC(r.endMs), { mono: true });
+    body.append(row);
+  }
+}
+
+function drawResult() {
+  const a = analyze(state.result);
+  $("stat-attempt").textContent = `Attempt ${a.charge.attempt}`;
+  $("stat-attempt-detail").textContent = `Attempt 1 failed ${(a.charge.ran - a.charge.first).toFixed(2)} s earlier`;
+  $("stat-sleep").textContent = `${(a.sleep.end - a.sleep.start).toFixed(2)} s`;
+  $("stat-sleep-detail").textContent = `Asked for ${a.sleep.requested} s`;
+  drawStepRows(a);
+  [0, a.reserve.ran, a.charge.ran, a.sleep.end, a.receipt.ran].forEach((s, i) => { $(`wake-${i}`).textContent = plus(s); });
+  $("wake-sleep-len").textContent = String(a.sleep.requested);
+  rich($("replay-proof"), [
+    `In this run the body that built the result ran at the last wake-up, at ${plus(a.receipt.ran)}. Yet the result says `,
+    { code: "reserve_inventory" }, ` ran at ${plus(a.reserve.ran)} on attempt ${a.reserve.attempt} and `,
+    { code: "charge_card" }, ` at ${plus(a.charge.ran)} on attempt ${a.charge.attempt}. Those values came from the event log, not from running the steps again.`,
+  ]);
+  if (state.run && state.run.postMs != null) {
+    $("stat-post-detail").textContent = `The run itself took ${a.total.toFixed(2)} s`;
+  }
+}
+
+function drawStatus() {
+  if (!state.run) return;
+  const s = state.status || "pending";
+  $("run-stats").hidden = false;
+  $("stat-status").textContent = s.charAt(0).toUpperCase() + s.slice(1);
+  setMono($("stat-run"), state.run.id);
+}
+
+function finish(message) {
+  clearTimeout(state.timer);
+  state.timer = null;
+  $("run-start").disabled = false;
+  if (message) $("run-status").textContent = message;
+}
+
+async function poll() {
+  const run = state.run;
+  if (!run) return;
+  let r;
+  try {
+    r = await callJSON(`/api/runs/${encodeURIComponent(run.id)}`);
+  } catch (error) {
+    finish(`Could not check the run: ${error.message}`);
+    return;
+  }
+  if (state.run !== run) return;
+  if (r.status === 404) {
+    store(null);
+    finish(`The app no longer knows run ${run.id}. Run data expires after completion, so start a new run.`);
+    return;
+  }
+  if (r.status !== 200 || typeof r.body !== "object") {
+    finish(`Status check failed with HTTP ${r.status}.`);
+    return;
+  }
+  const t = (Date.now() - run.sentAt) / 1000;
+  const changed = r.body.status !== state.status;
+  state.status = r.body.status;
+  state.polls.push({ t, status: state.status, ms: r.ms });
+  drawStatus();
+  if (state.status === "completed") {
+    state.result = r.body.result;
+    drawResult();
+    drawTimeline();
+    const n = state.polls.length;
+    finish(n === 1
+      ? "Showing your last run, which had already completed. Its result was read again from the app."
+      : `Run completed. ${n} status checks from this browser saw it go from ${state.polls[0].status} to completed.`);
+    return;
+  }
+  drawTimeline();
+  if (state.status === "failed" || state.status === "cancelled") {
+    finish(`The run ended as ${state.status}.`);
+    return;
+  }
+  if (changed && !(run.resumed && state.polls.length === 1)) {
+    $("run-status").textContent = `Run is ${state.status}. This page checks its status once a second. Reload it during the sleep: the run carries on without the page and is picked up again.`;
+  }
+  if (t > run.delay + 120) {
+    finish(`Still ${state.status} after ${Math.round(t)} seconds, so this page stopped checking. Reload to check again.`);
+    return;
+  }
+  state.timer = setTimeout(poll, POLL_MS);
+}
+
+function resetEvidence() {
+  state.polls = [];
+  state.status = null;
+  state.result = null;
+  $("stat-attempt").textContent = "…";
+  $("stat-attempt-detail").textContent = "Reported by the step when the run completes";
+  $("stat-sleep").textContent = "…";
+  $("stat-sleep-detail").textContent = "Measured between events in the run's log";
+  $("step-rows").innerHTML = '<tr><td colspan="6">Times appear here when the run completes.</td></tr>';
+  for (let i = 0; i < 5; i++) $(`wake-${i}`).textContent = "…";
+}
+
+$("run-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const input = $("delay");
+  const error = $("delay-error");
+  const delay = Number(input.value);
+  if (input.value.trim() === "" || !Number.isInteger(delay) || delay < 3 || delay > 30) {
+    error.textContent = "Enter a whole number of seconds from 3 to 30.";
+    error.hidden = false;
+    input.setAttribute("aria-invalid", "true");
+    return;
+  }
+  error.hidden = true;
+  input.removeAttribute("aria-invalid");
+  clearTimeout(state.timer);
+  $("run-start").disabled = true;
+  resetEvidence();
+  $("wake-sleep-len").textContent = String(delay);
+  $("run-status").textContent = "Starting a run…";
+  const sentAt = Date.now();
+  let r;
+  try {
+    r = await callJSON(`/api/runs?delay_seconds=${delay}`, { method: "POST" });
+  } catch (err) {
+    finish(`Could not start a run: ${err.message}`);
+    return;
+  }
+  if (r.status !== 200 || !r.body.run_id) {
+    finish(`Starting the run failed with HTTP ${r.status}.`);
+    return;
+  }
+  state.run = { id: r.body.run_id, delay, sentAt, postMs: r.ms };
+  store(state.run);
+  state.status = "pending";
+  drawStatus();
+  $("stat-post").textContent = `${Math.round(r.ms)} ms`;
+  $("stat-post-detail").textContent = "The run goes on in the background";
+  $("route-post").textContent = `${Math.round(r.ms)} ms`;
+  showRoute(r.route);
+  $("run-status").textContent = `Run started. POST /api/runs answered in ${Math.round(r.ms)} ms; the workflow runs on its own from here.`;
+  drawTimeline();
+  state.timer = setTimeout(poll, 250);
+});
+
+function showRoute(route) {
+  if (route.region) {
+    rich($("route-where"), ["in ", { code: route.region }]);
+    rich($("route-caption"), [
+      "Your requests reached edge location ", { code: route.edge }, " and the web function in ", { code: route.region },
+      ", read from the ", { code: "x-vercel-id" }, " response header. ",
+      state.world === "vercel"
+        ? ["The SDK is using its Vercel World, Vercel Queues and the managed event log, because the deployment sets ", { code: "VERCEL_DEPLOYMENT_ID" }, "."]
+        : [`The app reports the SDK's world as ${state.world || "unknown"}.`],
+    ].flat());
+  } else {
+    $("route-where").textContent = "on this machine";
+    rich($("route-caption"), [
+      "This page is talking to a local server, so there is no ", { code: "x-vercel-id" }, " header. The SDK is using its Local World: an in-process queue and JSON files under ",
+      { code: ".workflow-data/" }, " stand in for Vercel Queues and the event log. On Vercel the same code uses both, with no change.",
+    ]);
+  }
+}
+
+async function loadInfo() {
+  try {
+    const r = await callJSON("/");
+    state.world = typeof r.body === "object" ? r.body.world : null;
+    showRoute(r.route);
+  } catch {
+    $("route-caption").textContent = "Could not reach the app to read its region.";
+  }
+}
+
+function resume() {
+  const saved = restore();
+  if (!saved || !saved.id || Date.now() - saved.sentAt > 24 * 3600 * 1000) return;
+  state.run = { ...saved, resumed: true };
+  $("delay").value = String(saved.delay);
+  $("wake-sleep-len").textContent = String(saved.delay);
+  if (saved.postMs != null) {
+    $("stat-post").textContent = `${Math.round(saved.postMs)} ms`;
+    $("stat-post-detail").textContent = "The run goes on in the background";
+    $("route-post").textContent = `${Math.round(saved.postMs)} ms`;
+  }
+  drawStatus();
+  $("run-start").disabled = true;
+  $("run-status").textContent = `Picked up your last run, started ${Math.round((Date.now() - saved.sentAt) / 1000)} seconds ago. It doesn't depend on this page, so it kept going while the page reloaded.`;
+  poll();
+}
+
+let lastWidth = 0;
+new ResizeObserver((entries) => {
+  const w = Math.round(entries[0].contentRect.width);
+  if (w && w !== lastWidth) { lastWidth = w; drawTimeline(); }
+}).observe($("timeline").parentElement);
+
+loadInfo().then(() => { if (!state.run) resume(); });
+drawTimeline();
+</script>
+</body>
+</html>

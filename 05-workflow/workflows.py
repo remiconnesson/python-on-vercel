@@ -13,26 +13,40 @@ from vercel import workflow
 wf = workflow.Workflows()
 
 
+def step_record(result: str) -> dict:
+    # Called from inside a step: says which attempt this is and when it ran,
+    # so the run's result shows what actually happened. step_started_at is
+    # when the first attempt began; the SDK keeps it across retries.
+    meta = workflow.get_step_metadata()
+    return {
+        "name": meta.step_name.rsplit("//", 1)[-1],
+        "result": result,
+        "attempt": meta.attempt,
+        "first_attempt_at": meta.step_started_at.isoformat(),
+        "ran_at": datetime.now(UTC).isoformat(),
+    }
+
+
 # Steps are normal async Python: do I/O, read the clock, call APIs here.
 # Each step runs as its own invocation, and its result goes into the run's
 # event log, so a step that already succeeded never runs again.
 @wf.step
-async def reserve_inventory(order_id: str) -> str:
-    return f"reserved items for {order_id}"
+async def reserve_inventory(order_id: str) -> dict:
+    return step_record(f"reserved items for {order_id}")
 
 
 @wf.step
-async def charge_card(order_id: str) -> str:
+async def charge_card(order_id: str) -> dict:
     # A step that raises is retried (3 retries by default). Fail the first
     # attempt on purpose to show the retry.
     if workflow.get_step_metadata().attempt == 1:
         raise RuntimeError("simulated transient payment error")
-    return f"charged card for {order_id}"
+    return step_record(f"charged card for {order_id}")
 
 
 @wf.step
-async def send_receipt(order_id: str) -> str:
-    return f"receipt for {order_id} sent at {datetime.now(UTC).isoformat()}"
+async def send_receipt(order_id: str) -> dict:
+    return step_record(f"receipt for {order_id} sent")
 
 
 # The workflow body orchestrates the steps. Every time the run wakes up (after
@@ -42,6 +56,9 @@ async def send_receipt(order_id: str) -> str:
 # (workflow.now() / workflow.random() are the safe replacements).
 @wf.workflow
 async def process_order(order_id: str, delay_seconds: int = 10) -> dict:
+    # workflow.now() is the time of the latest event in the run's event log,
+    # so it gives the same answer on every replay.
+    started_at = workflow.now()
     reserved = await reserve_inventory(order_id)
     charged = await charge_card(order_id)
 
@@ -54,6 +71,8 @@ async def process_order(order_id: str, delay_seconds: int = 10) -> dict:
     receipt = await send_receipt(order_id)
     return {
         "steps": [reserved, charged, receipt],
+        "started_at": started_at.isoformat(),
         "slept_at": slept_at.isoformat(),
         "woke_at": woke_at.isoformat(),
+        "delay_seconds": delay_seconds,
     }
