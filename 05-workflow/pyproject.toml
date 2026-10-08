@@ -1,0 +1,21 @@
+[project]
+name = "workflow-on-vercel"
+version = "0.1.0"
+description = "Minimal Vercel Workflow demo with the Python SDK (FastAPI + vercel-workflow)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.142.2",
+    # Must be a direct dependency: the Vercel Python builder checks for it to
+    # serve workflows through Vercel Queues.
+    "vercel-workflow>=0.11.0",
+]
+
+[dependency-groups]
+# Local dev server only; Vercel runs the ASGI app itself.
+dev = ["uvicorn>=0.54.0"]
+
+# Tells the Vercel Python builder where the Workflows registry is ("module:object").
+# At build time it deploys this registry as a separate function subscribed to the
+# workflow's Vercel Queues topics. The web app (main.py) is detected as usual.
+[[tool.vercel.workflows]]
+entrypoint = "workflows:wf"
