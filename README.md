@@ -25,7 +25,7 @@ with links, gotchas, and why the demo is built the way it is).
   `git diff --quiet ${VERCEL_GIT_PREVIOUS_SHA:-HEAD^} HEAD -- .`, so a push only
   rebuilds the demos whose folder changed.
 - Nothing needs provisioning. The AI demos call AI Gateway with the deployment's
-  OIDC token (no API key). Celery and Workflow use Vercel Queues, and Celery
+  OIDC token (no API key). `03-celery` and Workflow use Vercel Queues, and Celery
   results go to Runtime Cache, all authenticated by OIDC. The only env var set is
   `DJANGO_SECRET_KEY` on the Django project.
 - No demo needs a `vercel.json` except `08-containers`, which pins
