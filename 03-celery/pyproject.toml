@@ -1,0 +1,24 @@
+[project]
+name = "celery-on-vercel"
+version = "0.1.0"
+description = "Minimal Celery on Vercel: FastAPI producer + Celery worker running on Vercel Queues"
+requires-python = ">=3.12"
+dependencies = [
+    "celery>=5.6.3",
+    "fastapi>=0.142.2",
+    # Vercel's Celery adapter (vercel:// broker + vercel-runtime-cache:// backend).
+    # Optional per the docs (the build injects a bundled copy when absent), but
+    # declaring it pins the version in uv.lock. See README "Gotchas" for why.
+    "vercel-celery>=0.7.7",
+]
+
+# The public web app (Vercel Function serving every HTTP request).
+[tool.vercel]
+entrypoint = "main:app"
+
+# The Celery worker. Vercel imports it at build time, reads the queues the
+# Celery app declares, and compiles it into a private queue-triggered function.
+# Declaring a subscriber + depending on `celery` is also what makes the build
+# activate the `vercel-celery` adapter in both functions.
+[[tool.vercel.subscribers]]
+entrypoint = "worker:app"
