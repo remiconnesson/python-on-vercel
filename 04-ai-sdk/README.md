@@ -7,7 +7,7 @@ A FastAPI app built on the official **AI SDK for Python** (PyPI package [`ai`](h
 ```
 04-ai-sdk/
 ├── main.py         # FastAPI app: ai.stream, ai.Agent + @ai.tool, ai.ui.ai_sdk.to_sse
-├── index.html      # one static page: a chat UI that reads /api/chat's SSE by hand and shows the raw chunks
+├── index.html      # the visual explainer served at `/`: calls every route live, parses /api/chat's SSE by hand
 ├── pyproject.toml  # deps: ai[vercel] (the [vercel] extra adds OIDC auth), fastapi; uvicorn is a dev-only dependency
 ├── uv.lock         # locked dependency versions
 └── RESEARCH.md     # what exists and why this approach
@@ -17,9 +17,9 @@ A FastAPI app built on the official **AI SDK for Python** (PyPI package [`ai`](h
 
 | Route | What it shows |
 | --- | --- |
-| `GET /` | Chat page that talks to `POST /api/chat` |
-| `GET /api` | JSON with the model id, which credential was detected, and the endpoint list |
-| `GET /api/generate?prompt=` | `ai.stream(...)` read to the end, returned as JSON (`text`, `usage`) |
+| `GET /` | The visual explainer page (see below) |
+| `GET /api` | JSON with the model id, the installed `ai` version, which credential was detected, and the endpoint list |
+| `GET /api/generate?prompt=` | `ai.stream(...)` read to the end, returned as JSON (`text`, `usage`, `finish_reason`, `response_model`, `model_ms`) |
 | `GET /api/stream?prompt=` | `TextDelta` chunks streamed as `text/plain` |
 | `POST /api/chat` | `ai.Agent` with a `get_weather` tool, sent as an AI SDK UI message stream (SSE, `x-vercel-ai-ui-message-stream: v1`) |
 
@@ -55,5 +55,7 @@ curl -N $BASE/api/chat -H 'content-type: application/json' -d '{
   "messages": [{"id": "1", "role": "user", "parts": [{"type": "text", "text": "What is the weather in Paris?"}]}]
 }'
 ```
+
+Open the deployment in a browser for a live explainer. On load it calls only `GET /api` (no model call) to show the model, SDK version, credential source and function region. Its buttons then call the model routes: `/api/chat` is read by a hand-written `useChat`-style client that shows each SSE event in an ordered log with arrival times, a lane timeline of the agent's steps, and the tool call and reply as a chat UI would render them; `/api/stream` is plotted chunk by chunk; `/api/generate` shows token usage and timing. Locally without a credential, each model route shows its `503` message.
 
 `/api/chat` streams `data: {...}` events: `start`, `text-delta`, `tool-input-start`/`tool-input-delta`, `tool-output-available`, `finish`, and then `data: [DONE]`. To use it from React, point `useChat({ transport: new DefaultChatTransport({ api: "/api/chat" }) })` at it.

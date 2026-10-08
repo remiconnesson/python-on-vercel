@@ -1,66 +1,942 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI SDK for Python on Vercel</title>
-  <style>
-    body { font: 15px/1.5 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 16px; }
-    code, pre { font: 12px/1.4 ui-monospace, monospace; }
-    pre { background: #f4f4f5; padding: .75rem; overflow-x: auto; max-height: 18rem; }
-    form { display: flex; gap: .5rem; } input { flex: 1; padding: .4rem; }
-    .user { font-weight: 600; margin-top: 1rem; } .tool { color: #6b7280; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI SDK for Python on Vercel</title>
+<meta name="description" content="A FastAPI app on the official AI SDK for Python, calling AI Gateway with the deployment's OIDC token and streaming the protocol useChat reads, tested live.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" referrerpolicy="no-referrer">
+<link href="https://vercel.com/geist/vercel-brand.css" rel="stylesheet">
+<style>
+  /* Page-owned layout only. Everything else comes from the published foundation. */
+  .vbg-custom-measure { max-width: 68ch; }
+  .vbg-custom-measure > * { margin: 0; }
+  .vbg-custom-form { display: grid; gap: var(--vbg-space-3); align-content: start; min-width: 0; margin: 0; }
+  .vbg-custom-form > * { margin: 0; }
+  .vbg-custom-controls { display: flex; flex-wrap: wrap; gap: var(--vbg-space-3); align-items: end; }
+  .vbg-custom-controls > * { margin: 0; }
+  .vbg-custom-grow { flex: 1 1 22rem; min-width: 0; }
+  .vbg-custom-grow input { width: 100%; }
+  .vbg-custom-outcome { display: grid; gap: var(--vbg-space-2); max-width: 80ch; }
+  .vbg-custom-outcome > * { margin: 0; }
+  .vbg-custom-block { display: grid; gap: var(--vbg-space-4); align-content: start; min-width: 0; }
+  .vbg-custom-block > * { margin: 0; }
+  .vbg-custom-parts { margin: 0; display: grid; grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr); column-gap: var(--vbg-space-6); row-gap: var(--vbg-space-3); align-items: baseline; }
+  .vbg-custom-parts > dt, .vbg-custom-parts > dd { margin: 0; min-width: 0; }
+  .vbg-custom-parts > dd { overflow-wrap: anywhere; white-space: pre-wrap; }
+  .vbg-custom-parts > dd > div + div { margin-top: var(--vbg-space-1); }
+  .vbg-custom-text { white-space: pre-wrap; overflow-wrap: anywhere; min-height: 4.5em; }
+  .vbg-custom-output { margin: 0; padding: var(--vbg-space-4); background: var(--vbg-surface-secondary); border: 1px solid var(--vbg-border-subtle); border-radius: var(--vbg-radius-small); font-size: var(--vbg-type-compact); line-height: var(--vbg-leading-compact); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
+  .vbg-custom-details { display: grid; gap: var(--vbg-space-3); }
+  .vbg-custom-details > summary { cursor: pointer; width: max-content; max-width: 100%; }
+  .vbg-custom-check { display: inline-flex; gap: var(--vbg-space-2); align-items: center; cursor: pointer; }
+  .vbg-custom-check input { margin: 0; }
+  .vbg-custom-payload { overflow-wrap: anywhere; min-width: 16rem; }
+  .vbg-custom-nowrap { white-space: nowrap; }
+  .vbg-custom-timeline { display: block; width: 100%; height: auto; }
+  table.vbg-custom-ledger code, table.vbg-custom-ledger .vbg-custom-nowrap { white-space: nowrap; }
+  .vbg-custom-route { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--vbg-space-6); }
+  ol.vbg-custom-route > li, ol.vbg-custom-route > li + li { margin: 0; min-width: 0; display: grid; gap: var(--vbg-space-2); align-content: start; padding-top: var(--vbg-space-4); border-top: 1px solid var(--vbg-border-strong); }
+  .vbg-custom-route > li > * { margin: 0; }
+  @media (max-width: 960px) {
+    .vbg-custom-route { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 720px) {
+    .vbg-custom-route, .vbg-custom-parts { grid-template-columns: minmax(0, 1fr); }
+    .vbg-custom-parts { row-gap: var(--vbg-space-1); }
+    .vbg-custom-parts > dd + dt { margin-top: var(--vbg-space-3); }
+  }
+</style>
 </head>
-<body>
-  <h1>AI SDK for Python on Vercel</h1>
-  <p>FastAPI + the <code>ai</code> package, models via AI Gateway. Endpoints:
-    <a href="/api">/api</a>, <a href="/api/generate">/api/generate</a>,
-    <a href="/api/stream">/api/stream</a>, and <code>POST /api/chat</code> (used below).</p>
-  <p>This page reads the same AI SDK UI message stream that <code>useChat</code> from
-    <code>@ai-sdk/react</code> consumes, but parses it by hand so you can see the wire format.</p>
+<body class="vbg-report">
+<div class="vbg-shell">
+  <a class="vbg-skip-link" href="#main">Skip to content</a>
+  <header class="vbg-header">
+    <div class="vbg-masthead">
+      <span class="vbg-identity"><span class="vbg-wordmark" role="img" aria-label="Vercel"></span></span>
+      <div class="vbg-document-meta">
+        <span class="vbg-context">Python on Vercel, demo 4 of 8</span>
+        <span class="vbg-state">Live deployment</span>
+      </div>
+    </div>
+  </header>
 
-  <div id="chat"></div>
-  <form id="form"><input id="prompt" value="What's the weather in Paris?" autocomplete="off"><button>Send</button></form>
-  <h3>Raw stream</h3>
-  <pre id="raw"></pre>
+  <main id="main">
+    <section class="vbg-opening" aria-labelledby="title">
+      <div class="vbg-opening-claim">
+        <h1 class="vbg-title" id="title">The AI SDK for Python calls AI Gateway with no API key and streams what useChat reads</h1>
+        <div class="vbg-custom-measure"><p class="vbg-lede">This page is served by a FastAPI app built on <code class="vbg-mono">ai</code>, the official AI SDK for Python, in public beta. The SDK sends model calls to Vercel AI Gateway, one endpoint for many model providers. On Vercel it signs them with the deployment's OIDC token, an identity token Vercel attaches to each request, so the project stores no key. Every result below comes from this deployment.</p></div>
+      </div>
+      <div class="vbg-opening-proof">
+        <div class="vbg-stat-strip">
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Credential</p>
+            <p class="vbg-stat-value" id="stat-cred">…</p>
+            <p class="vbg-stat-detail" id="stat-cred-detail">Checking what the SDK found</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Model</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-model">…</span></p>
+            <p class="vbg-stat-detail" id="stat-model-detail">Called through AI Gateway</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">AI SDK for Python</p>
+            <p class="vbg-stat-value" id="stat-sdk">…</p>
+            <p class="vbg-stat-detail">Package <code class="vbg-mono">ai</code>, pinned in <code class="vbg-mono">uv.lock</code></p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Function region</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-region">…</span></p>
+            <p class="vbg-stat-detail" id="stat-edge">Edge location loading</p>
+          </div>
+        </div>
+        <p class="vbg-caption" id="opening-status" role="status">Asking the function which model and credential it uses.</p>
+      </div>
+    </section>
 
-  <script>
-    const messages = []; // UIMessage[]: what useChat would keep and POST
-    const $ = (id) => document.getElementById(id);
-    const line = (cls, text) => { const p = document.createElement("p"); p.className = cls; p.textContent = text; $("chat").append(p); return p; };
+    <section class="vbg-section" aria-labelledby="chat-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="chat-title">The chat route speaks the stream protocol that useChat reads</h2>
+        <p><code class="vbg-mono">POST /api/chat</code> takes a message list in the format the <code class="vbg-mono">useChat</code> hook sends. An <code class="vbg-mono">ai.Agent</code> with one tool, <code class="vbg-mono">get_weather</code>, answers it: the model asks for the tool, the function runs it, and the model writes the reply. <code class="vbg-mono">ai.ui.ai_sdk.to_sse</code> turns each step into a <code class="vbg-mono">data:</code> line of the AI SDK UI message stream. This page has no AI SDK code; it reads those lines by hand, the way <code class="vbg-mono">useChat</code> does.</p>
+      </div>
+      <form class="vbg-custom-form" id="chat-form">
+        <div class="vbg-custom-controls">
+          <div class="vbg-custom-grow">
+            <div class="vbg-field">
+              <label class="vbg-label" for="chat-input">Message</label>
+              <input id="chat-input" value="What's the weather in Paris?" maxlength="200" autocomplete="off" required>
+            </div>
+          </div>
+          <button class="vbg-button" id="chat-run" type="submit">Send to /api/chat</button>
+        </div>
+        <p class="vbg-helper">Each send starts a new conversation. When the model uses the tool, one send makes two model calls.</p>
+      </form>
+      <div class="vbg-custom-outcome" role="status">
+        <p class="vbg-heading-20" id="chat-status">Nothing sent yet.</p>
+        <p class="vbg-error" id="chat-error" hidden></p>
+      </div>
+      <div class="vbg-grid">
+        <div class="vbg-custom-block vbg-span-7">
+          <h3 class="vbg-heading-16">What a chat interface would show</h3>
+          <dl class="vbg-custom-parts" id="chat-parts">
+            <dt class="vbg-label">You</dt><dd>Send a message to see the reply build up, part by part.</dd>
+          </dl>
+        </div>
+        <div class="vbg-custom-block vbg-span-5">
+          <h3 class="vbg-heading-16">What came over the wire</h3>
+          <dl class="vbg-custom-parts" id="chat-wire">
+            <dt class="vbg-label">Status</dt><dd id="wire-status">Not sent</dd>
+            <dt class="vbg-label">Content type</dt><dd><span class="vbg-mono" id="wire-type">…</span></dd>
+            <dt class="vbg-label">Protocol</dt><dd id="wire-protocol">…</dd>
+            <dt class="vbg-label">Events</dt><dd id="wire-events">…</dd>
+          </dl>
+        </div>
+      </div>
+      <figure class="vbg-chart">
+        <div class="vbg-chart-header">
+          <h3 class="vbg-heading-16">When each event arrived, by kind</h3>
+        </div>
+        <div class="vbg-chart-viewport" tabindex="0">
+          <svg class="vbg-custom-timeline" id="chat-svg" viewBox="0 0 1000 220" role="img" aria-labelledby="chat-svg-desc">
+            <desc id="chat-svg-desc">Timeline of chat stream events. Send a message to fill it.</desc>
+          </svg>
+        </div>
+        <figcaption class="vbg-caption" id="chat-caption">Each tick is one event, placed at the moment this browser parsed it. Bars are agent steps, from <code class="vbg-mono">start-step</code> to <code class="vbg-mono">finish-step</code>, one model call each. The adapter closes a step when the next one starts, so the first bar also covers the tool run and the wait for the second call.</figcaption>
+      </figure>
+      <h3 class="vbg-heading-20">Every event, in the order it arrived</h3>
+      <label class="vbg-custom-check"><input type="checkbox" id="chat-all"> Show each delta as its own row</label>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Events of the last chat stream, in arrival order</caption>
+          <thead>
+            <tr>
+              <th scope="col" class="vbg-numeric">Event</th>
+              <th scope="col" class="vbg-numeric">Arrived after</th>
+              <th scope="col">Type</th>
+              <th scope="col">Payload</th>
+            </tr>
+          </thead>
+          <tbody id="chat-rows">
+            <tr><td colspan="4">Send a message to record its events.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="vbg-caption" id="chat-log-caption">Runs of consecutive deltas are merged into one row, with their text joined. Long payloads are shortened; the raw body below has every byte.</p>
+      <details class="vbg-custom-details">
+        <summary>Request body and raw response</summary>
+        <p class="vbg-label">Request body, a <code class="vbg-mono">UIMessage</code> list</p>
+        <pre class="vbg-custom-output vbg-mono" id="chat-request">Not sent yet.</pre>
+        <p class="vbg-label">Response body, exactly as received</p>
+        <pre class="vbg-custom-output vbg-mono" id="chat-raw">Not received yet.</pre>
+      </details>
+      <div class="vbg-flow vbg-reading">
+        <p>A React app gets the same events from the same URL by pointing <code class="vbg-mono">useChat</code> from <code class="vbg-mono">@ai-sdk/react</code> at it. Nothing in the Python app changes.</p>
+      </div>
+      <pre class="vbg-custom-output vbg-mono">useChat({ transport: new DefaultChatTransport({ api: "/api/chat" }) })</pre>
+    </section>
 
-    $("form").onsubmit = async (e) => {
-      e.preventDefault();
-      const text = $("prompt").value; $("prompt").value = ""; $("raw").textContent = "";
-      line("user", text);
-      messages.push({ id: crypto.randomUUID(), role: "user", parts: [{ type: "text", text }] });
+    <section class="vbg-section" aria-labelledby="stream-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="stream-title">Tokens reach the browser while the model is still writing</h2>
+        <p><code class="vbg-mono">GET /api/stream</code> opens <code class="vbg-mono">ai.stream</code> and yields the text of each <code class="vbg-mono">TextDelta</code> event as plain text. Python functions on Vercel stream by default, so each piece leaves the function as soon as it is yielded instead of waiting for the full answer.</p>
+      </div>
+      <form class="vbg-custom-form" id="stream-form">
+        <div class="vbg-custom-controls">
+          <div class="vbg-custom-grow">
+            <div class="vbg-field">
+              <label class="vbg-label" for="stream-input">Prompt</label>
+              <input id="stream-input" value="Write a haiku about Python." maxlength="200" autocomplete="off" required>
+            </div>
+          </div>
+          <button class="vbg-button" id="stream-run" type="submit">Start stream</button>
+        </div>
+      </form>
+      <div class="vbg-custom-outcome" role="status">
+        <p class="vbg-heading-20" id="stream-status">Nothing streamed yet.</p>
+        <p class="vbg-error" id="stream-error" hidden></p>
+      </div>
+      <div class="vbg-custom-measure"><p class="vbg-custom-text" id="stream-text">The text appears here as it arrives.</p></div>
+      <figure class="vbg-chart">
+        <div class="vbg-chart-header">
+          <h3 class="vbg-heading-16">When each piece of text reached this browser</h3>
+        </div>
+        <div class="vbg-chart-viewport" tabindex="0">
+          <svg class="vbg-custom-timeline" id="stream-svg" viewBox="0 0 1000 144" role="img" aria-labelledby="stream-svg-desc">
+            <desc id="stream-svg-desc">Timeline of text arrival times. Start the stream to fill it.</desc>
+          </svg>
+        </div>
+        <figcaption class="vbg-caption" id="stream-caption">Each tick is one read from the response body. A read can hold more than one token. Ticks spread across time mean the text was streamed; a buffered response would put them all at the end.</figcaption>
+      </figure>
+    </section>
 
-      const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages }) });
-      if (!res.ok) { line("tool", `HTTP ${res.status}: ${await res.text()}`); return; }
+    <section class="vbg-section" aria-labelledby="gen-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="gen-title">A full generation comes back with its token usage</h2>
+        <p><code class="vbg-mono">GET /api/generate</code> reads the same stream to the end inside the function and returns one JSON object: the text, the token usage AI Gateway reported, and how long the model call took.</p>
+      </div>
+      <form class="vbg-custom-form" id="gen-form">
+        <div class="vbg-custom-controls">
+          <div class="vbg-custom-grow">
+            <div class="vbg-field">
+              <label class="vbg-label" for="gen-input">Prompt</label>
+              <input id="gen-input" value="Why is the sky blue?" maxlength="200" autocomplete="off" required>
+            </div>
+          </div>
+          <button class="vbg-button" id="gen-run" type="submit">Generate</button>
+        </div>
+      </form>
+      <div class="vbg-custom-outcome" role="status">
+        <p class="vbg-heading-20" id="gen-status">Nothing generated yet.</p>
+        <p class="vbg-error" id="gen-error" hidden></p>
+      </div>
+      <div class="vbg-custom-measure" id="gen-text-wrap" hidden><p class="vbg-custom-text" id="gen-text"></p></div>
+      <div class="vbg-stat-strip" id="gen-stats" hidden>
+        <div class="vbg-stat">
+          <p class="vbg-stat-label">Input tokens</p>
+          <p class="vbg-stat-value" id="gen-in">…</p>
+          <p class="vbg-stat-detail">System message plus your prompt</p>
+        </div>
+        <div class="vbg-stat">
+          <p class="vbg-stat-label">Output tokens</p>
+          <p class="vbg-stat-value" id="gen-out">…</p>
+          <p class="vbg-stat-detail" id="gen-finish">Finish reason</p>
+        </div>
+        <div class="vbg-stat">
+          <p class="vbg-stat-label">Reasoning tokens</p>
+          <p class="vbg-stat-value" id="gen-reason">…</p>
+          <p class="vbg-stat-detail">A breakdown of output, when reported</p>
+        </div>
+        <div class="vbg-stat">
+          <p class="vbg-stat-label">Round trip</p>
+          <p class="vbg-stat-value" id="gen-rtt">…</p>
+          <p class="vbg-stat-detail" id="gen-model-ms">Model call time</p>
+        </div>
+      </div>
+      <details class="vbg-custom-details" id="gen-raw-wrap" hidden>
+        <summary>Raw JSON response</summary>
+        <pre class="vbg-custom-output vbg-mono" id="gen-raw"></pre>
+      </details>
+    </section>
 
-      let full = "", out = line("assistant", ""), tool, buf = "";
-      const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += value;
-        const events = buf.split("\n\n"); buf = events.pop(); // SSE: one "data: {...}" per event
-        for (const ev of events) {
-          $("raw").textContent += ev + "\n";
-          const data = ev.replace(/^data: /, "");
-          if (data === "[DONE]") continue;
-          const c = JSON.parse(data);
-          if (c.type === "text-delta") { out.textContent += c.delta; full += c.delta; }
-          if (c.type === "tool-input-start") tool = line("tool", `tool call: ${c.toolName} `);
-          if (c.type === "tool-input-delta") tool.textContent += c.inputTextDelta;
-          if (c.type === "tool-output-available") { line("tool", `tool result: ${JSON.stringify(c.output)}`); out = line("assistant", ""); }
-          if (c.type === "error") line("tool", `error: ${c.errorText}`);
-        }
+    <section class="vbg-section" aria-labelledby="how-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="how-title">What Vercel did with this folder</h2>
+        <p>The project contains <code class="vbg-mono">main.py</code>, <code class="vbg-mono">pyproject.toml</code> and <code class="vbg-mono">uv.lock</code>. There is no <code class="vbg-mono">vercel.json</code> and no environment variable to set; every decision below came from those files and the project defaults.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table class="vbg-custom-ledger">
+          <caption class="vbg-visually-hidden">Build and runtime decisions and where each one came from</caption>
+          <thead>
+            <tr><th scope="col">Decision</th><th scope="col">Read from</th><th scope="col">Result</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Framework</th><td><code class="vbg-mono">app</code> in <code class="vbg-mono">main.py</code></td><td>FastAPI, deployed as one function that serves this page and every API route</td></tr>
+            <tr><th scope="row">Dependencies</th><td><code class="vbg-mono">uv.lock</code></td><td><code class="vbg-mono">ai[vercel]</code> and <code class="vbg-mono">fastapi</code>. The <code class="vbg-mono">[vercel]</code> extra adds OIDC support; the local-only uvicorn is left out</td></tr>
+            <tr><th scope="row">Model routing</th><td><code class="vbg-mono">ai.get_model(...)</code> in <code class="vbg-mono">main.py</code></td><td>The id <code class="vbg-mono vbg-custom-nowrap" id="build-model">openai/gpt-6-luna</code> has no <code class="vbg-mono">provider:</code> prefix, so the SDK sends it to AI Gateway</td></tr>
+            <tr><th scope="row">Credential</th><td>Each request's <code class="vbg-mono">x-vercel-oidc-token</code> header</td><td id="build-cred"><code class="vbg-mono">AI_GATEWAY_API_KEY</code> is not set, so the SDK gets the request's token from <code class="vbg-mono">vercel.oidc</code></td></tr>
+            <tr><th scope="row">Streaming</th><td>Project defaults</td><td>Fluid compute with streaming on, so each <code class="vbg-mono">StreamingResponse</code> chunk is sent when it is yielded</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3 class="vbg-heading-20">The path of a model call</h3>
+      <div class="vbg-span-12">
+      <ol class="vbg-custom-route">
+        <li>
+          <p class="vbg-label">This browser</p>
+          <p>Sends <code class="vbg-mono">POST /api/chat</code> with the message list. No credential leaves the browser.</p>
+        </li>
+        <li>
+          <p class="vbg-label">Vercel network</p>
+          <p id="route-edge-step">Receives it at <span class="vbg-mono" id="route-edge">…</span>, the closest edge location, and routes it to the function.</p>
+        </li>
+        <li>
+          <p class="vbg-label">Vercel Function</p>
+          <p id="route-fn-step">Runs FastAPI and <code class="vbg-mono">ai</code> in <span class="vbg-mono" id="route-region">…</span>, and calls AI Gateway with <span id="route-cred">the request's OIDC token</span>.</p>
+        </li>
+        <li>
+          <p class="vbg-label">AI Gateway</p>
+          <p id="route-gw-step">Checks the token, calls <span class="vbg-mono vbg-custom-nowrap" id="route-model">…</span> at its provider, and streams the tokens back.</p>
+        </li>
+      </ol>
+      </div>
+      <p class="vbg-caption">Edge location and region come from the <code class="vbg-mono">x-vercel-id</code> header of <code class="vbg-mono">GET /api</code>; the model and credential come from its body.</p>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="audit-title">
+      <h2 class="vbg-heading-24" id="audit-title">Endpoints, limits and sources</h2>
+      <div class="vbg-table-wrap">
+        <table class="vbg-custom-ledger">
+          <caption class="vbg-visually-hidden">Endpoints served by this app</caption>
+          <thead>
+            <tr><th scope="col">Endpoint</th><th scope="col">What it returns</th><th scope="col">Calls a model</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><code class="vbg-mono">GET /</code></th><td>This page</td><td>No</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /api</code></th><td>The model id, SDK version, the credential the SDK found, and the endpoint list</td><td>No</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /api/generate?prompt=</code></th><td>The full text as JSON, with token usage, finish reason and model call time</td><td>Once</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /api/stream?prompt=</code></th><td>The text as a plain-text stream</td><td>Once</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">POST /api/chat</code></th><td>An AI SDK UI message stream from an agent with the <code class="vbg-mono">get_weather</code> tool</td><td>Once per agent step</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p>Every model call is billed to the team's AI Gateway credits. <code class="vbg-mono">get_weather</code> returns fixed text, so the demo needs no weather service.</p>
+        <p>The <code class="vbg-mono">ai</code> package is in public beta and its minor releases have included breaking changes, so <code class="vbg-mono">uv.lock</code> pins the version shown above. In 0.8.0 the chat adapter sends a tool's input as <code class="vbg-mono">tool-input-delta</code> and no <code class="vbg-mono">tool-input-available</code> event; <code class="vbg-mono">useChat</code> handles this, and a hand-written client should not wait for the second one. The <code class="vbg-mono">finish</code> event carries the source messages the app needs to rebuild history on the next turn.</p>
+        <p>Once a stream has started, its status is already 200, so later failures arrive in the body: an <code class="vbg-mono">[error]</code> line from <code class="vbg-mono">/api/stream</code> and an <code class="vbg-mono">error</code> event from <code class="vbg-mono">/api/chat</code>. Run locally, the app has no OIDC token unless you set <code class="vbg-mono">AI_GATEWAY_API_KEY</code> or pull a token with <code class="vbg-mono">vercel env pull</code>, which lasts 12 hours. Without either, the model routes answer 503.</p>
+        <ul class="vbg-sources">
+          <li><a href="https://vercel.com/docs/ai-gateway/sdks-and-apis/ai-sdk-python">AI SDK for Python with AI Gateway</a></li>
+          <li><a href="https://ai-python.dev/docs">AI SDK for Python documentation</a></li>
+          <li><a href="https://github.com/vercel-labs/ai-python">vercel-labs/ai-python on GitHub</a></li>
+          <li><a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/oidc">AI Gateway OIDC authentication</a></li>
+          <li><a href="https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol">AI SDK UI stream protocol</a></li>
+          <li><a href="https://vercel.com/docs/frameworks/backend/fastapi">FastAPI on Vercel</a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vbg-footer">
+    <span class="vbg-logo" role="img" aria-label="Vercel"></span>
+    <span>Source: <code class="vbg-mono">python-on-vercel-demos/04-ai-sdk</code></span>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SVG = "http://www.w3.org/2000/svg";
+
+// The x-vercel-id header reads "<edge>::<function region>::<id>" for function responses.
+function parseVercelId(value) {
+  if (!value) return { edge: null, region: null };
+  const parts = value.split("::");
+  return { edge: parts[0], region: parts.length > 2 ? parts[1] : null };
+}
+
+async function callJSON(path, init = {}) {
+  const started = performance.now();
+  const res = await fetch(path, { ...init, headers: { Accept: "application/json", ...(init.headers || {}) } });
+  const text = await res.text();
+  const ms = performance.now() - started;
+  let body;
+  try { body = JSON.parse(text); } catch { body = text; }
+  return { status: res.status, ms, body, text, route: parseVercelId(res.headers.get("x-vercel-id")) };
+}
+
+// FastAPI errors are {"detail": "..."}; show the message itself.
+function detailOf(body) {
+  if (body && typeof body === "object" && "detail" in body) {
+    return typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+  }
+  return typeof body === "string" ? body : JSON.stringify(body);
+}
+
+function cell(row, text, { numeric = false, mono = false, header = false, className = "" } = {}) {
+  const el = document.createElement(header ? "th" : "td");
+  if (header) el.scope = "row";
+  el.className = [numeric ? "vbg-numeric" : "", className].filter(Boolean).join(" ");
+  if (mono) {
+    const code = document.createElement("span");
+    code.className = "vbg-mono";
+    code.textContent = text;
+    el.append(code);
+  } else {
+    el.textContent = text;
+  }
+  row.append(el);
+}
+
+function svgEl(name, attrs, text) {
+  const el = document.createElementNS(SVG, name);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+function mono(text) {
+  const el = document.createElement("span");
+  el.className = "vbg-mono";
+  el.textContent = text;
+  return el;
+}
+
+const fmtInt = (n) => Number(n).toLocaleString("en-US");
+const plural = (n, one, many) => `${fmtInt(n)} ${n === 1 ? one : many}`;
+const secs = (t, digits = 2) => `${t.toFixed(digits)} s`;
+
+function setOutcome(prefix, summary, error) {
+  $(`${prefix}-status`).textContent = summary;
+  const el = $(`${prefix}-error`);
+  el.hidden = !error;
+  el.textContent = error || "";
+}
+
+function niceStep(span, maxTicks) {
+  for (const s of [0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10, 20, 30, 60]) if (span / s <= maxTicks) return s;
+  return 120;
+}
+
+// Draw at the viewport's pixel width so SVG text keeps its native size on every screen.
+function svgWidth(svg) {
+  const w = svg.getBoundingClientRect().width;
+  return w > 0 ? Math.max(300, Math.round(w)) : 1000;
+}
+
+function drawAxis(svg, x, left, right, y, span) {
+  svg.append(svgEl("line", { class: "vbg-chart-axis", x1: left, x2: right, y1: y, y2: y, stroke: "currentColor" }));
+  const step = niceStep(span, Math.max(2, Math.floor((right - left) / 72)));
+  for (let i = 0; i * step <= span + 1e-9; i++) {
+    const s = i * step;
+    svg.append(svgEl("line", { class: "vbg-chart-gridline", x1: x(s), x2: x(s), y1: y, y2: y + 6, stroke: "currentColor" }));
+    svg.append(svgEl("text", { class: "vbg-chart-value", x: x(s), y: y + 26, "text-anchor": "middle", fill: "currentColor" }, `${Number(s.toFixed(2))} s`));
+  }
+}
+
+function clearSvg(svg) {
+  svg.querySelectorAll(":scope > :not(desc)").forEach((el) => el.remove());
+}
+
+// Opening proof: GET /api reports what the SDK found, without calling a model.
+const CREDENTIALS = {
+  "Vercel OIDC": { value: "Vercel OIDC", detail: "No AI Gateway key is stored in the project", route: "the request's OIDC token" },
+  "AI_GATEWAY_API_KEY": { value: "API key", detail: "Read from AI_GATEWAY_API_KEY", route: "the AI_GATEWAY_API_KEY value" },
+};
+const NO_CREDENTIAL = { value: "None", detail: "Model routes answer 503 until a key or token is set", route: null };
+
+async function loadOpening() {
+  try {
+    const r = await callJSON("/api");
+    if (r.status !== 200) throw new Error(`GET /api answered ${r.status}`);
+    const b = r.body;
+    const cred = CREDENTIALS[b.credentials] || NO_CREDENTIAL;
+    $("stat-cred").textContent = cred.value;
+    $("stat-cred-detail").textContent = cred.detail;
+    const [provider, name] = b.model.includes("/") ? b.model.split(/\/(.*)/s) : [null, b.model];
+    $("stat-model").textContent = name;
+    $("stat-model-detail").textContent = provider ? `From ${provider}, called through AI Gateway` : "Called through AI Gateway";
+    $("stat-sdk").textContent = b.ai_version;
+    $("stat-region").textContent = r.route.region || "local";
+    $("stat-edge").textContent = r.route.edge
+      ? `Reached through ${r.route.edge} in ${Math.round(r.ms)} ms`
+      : "No x-vercel-id header, so not on Vercel";
+    $("build-model").textContent = b.model;
+    if (b.credentials !== "Vercel OIDC") {
+      $("build-cred").textContent = b.credentials === "AI_GATEWAY_API_KEY"
+        ? "This deployment has AI_GATEWAY_API_KEY set, and the SDK uses it before trying OIDC"
+        : "No credential found here. On Vercel, the SDK reads the token the Python runtime took from the request";
+    }
+    if (r.route.edge) $("route-edge").textContent = r.route.edge;
+    else $("route-edge-step").textContent = "Not involved: this copy of the app runs locally, outside Vercel's network.";
+    $("route-model").textContent = b.model;
+    const where = r.route.region ? [" in ", mono(r.route.region)] : [" on this machine"];
+    if (cred.route) $("route-fn-step").replaceChildren("Runs FastAPI and ", mono("ai"), ...where, ", and calls AI Gateway with ", cred.route, ".");
+    else {
+      $("route-fn-step").replaceChildren("Runs FastAPI and ", mono("ai"), ...where, ". It has no credential, so model routes stop here with a 503.");
+      $("route-gw-step").replaceChildren("Not reached until the function has a key or token. Then it would call ", mono(b.model), ".");
+    }
+    $("opening-status").textContent = "Fetched from GET /api when this page loaded. That route calls no model; the sections below do, only when you press their buttons.";
+  } catch (error) {
+    $("opening-status").textContent = `Could not reach the function: ${error.message}`;
+  }
+}
+
+// Chat: a hand-written useChat client for the AI SDK UI message stream.
+const chat = { events: [], raw: "", text: {}, tools: {}, reasoning: {} };
+const DELTA_TYPES = new Set(["text-delta", "reasoning-delta", "tool-input-delta"]);
+const CHAT_LANES = [
+  { key: "message", label: "Message" },
+  { key: "step", label: "Agent steps" },
+  { key: "reasoning", label: "Reasoning" },
+  { key: "tool", label: "Tool" },
+  { key: "text", label: "Reply text" },
+];
+
+function laneOf(type) {
+  if (type === "start-step" || type === "finish-step") return "step";
+  if (type.startsWith("reasoning")) return "reasoning";
+  if (type.startsWith("tool-")) return "tool";
+  if (type.startsWith("text-")) return "text";
+  return "message";
+}
+
+function addPart(label, content) {
+  const dt = document.createElement("dt");
+  dt.className = "vbg-label";
+  dt.textContent = label;
+  const dd = document.createElement("dd");
+  if (content !== undefined) dd.textContent = content;
+  $("chat-parts").append(dt, dd);
+  return dd;
+}
+
+function renderTool(tool) {
+  const call = document.createElement("div");
+  call.append(mono(tool.name), document.createTextNode(" with input "), mono(tool.input || "…"));
+  const result = document.createElement("div");
+  if (tool.error !== undefined) {
+    result.className = "vbg-error";
+    result.append(document.createTextNode("Failed: "), mono(tool.error));
+  } else if (tool.output !== undefined) {
+    result.append(document.createTextNode("Returned "), mono(typeof tool.output === "string" ? tool.output : JSON.stringify(tool.output)));
+  } else {
+    result.textContent = "Waiting for the function to run it";
+  }
+  tool.dd.replaceChildren(call, result);
+}
+
+function applyPart(ev) {
+  const d = ev.data || {};
+  switch (ev.type) {
+    case "reasoning-start":
+      chat.reasoning[d.id] = { dd: addPart("Reasoning", "Started"), text: "" };
+      break;
+    case "reasoning-delta": {
+      const r = chat.reasoning[d.id] || (chat.reasoning[d.id] = { dd: addPart("Reasoning"), text: "" });
+      r.text += d.delta || "";
+      r.dd.textContent = r.text;
+      break;
+    }
+    case "reasoning-end": {
+      const r = chat.reasoning[d.id];
+      if (r && !r.text) r.dd.textContent = "A reasoning block with no text sent to the client";
+      break;
+    }
+    case "tool-input-start":
+      chat.tools[d.toolCallId] = { dd: addPart("Tool call"), name: d.toolName, input: "" };
+      renderTool(chat.tools[d.toolCallId]);
+      break;
+    case "tool-input-delta": {
+      const t = chat.tools[d.toolCallId];
+      if (t) { t.input += d.inputTextDelta || ""; renderTool(t); }
+      break;
+    }
+    case "tool-input-available": {
+      const t = chat.tools[d.toolCallId] || (chat.tools[d.toolCallId] = { dd: addPart("Tool call"), name: d.toolName, input: "" });
+      t.input = JSON.stringify(d.input);
+      renderTool(t);
+      break;
+    }
+    case "tool-output-available": {
+      const t = chat.tools[d.toolCallId];
+      if (t) { t.output = d.output; renderTool(t); }
+      break;
+    }
+    case "tool-output-error": {
+      const t = chat.tools[d.toolCallId];
+      if (t) { t.error = d.errorText; renderTool(t); }
+      break;
+    }
+    case "text-start":
+      chat.text[d.id] = { dd: addPart("Reply", ""), text: "" };
+      break;
+    case "text-delta": {
+      const t = chat.text[d.id] || (chat.text[d.id] = { dd: addPart("Reply", ""), text: "" });
+      t.text += d.delta || "";
+      t.dd.textContent = t.text;
+      break;
+    }
+    case "error": {
+      const dd = addPart("Error", d.errorText || "Unknown error");
+      dd.className = "vbg-error";
+      break;
+    }
+  }
+}
+
+function shorten(text, max = 180) {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+function payloadOf(ev) {
+  if (ev.type === "[DONE]") return "End of stream marker";
+  if (typeof ev.data !== "object" || ev.data === null) return shorten(String(ev.data));
+  const { type, ...rest } = ev.data;
+  return Object.keys(rest).length ? shorten(JSON.stringify(rest)) : "";
+}
+
+function deltaText(ev) {
+  return ev.data.delta ?? ev.data.inputTextDelta ?? "";
+}
+
+function chatRows(showAll) {
+  const rows = [];
+  for (const ev of chat.events) {
+    const key = DELTA_TYPES.has(ev.type) ? `${ev.type}:${ev.data.id ?? ev.data.toolCallId}` : null;
+    const last = rows[rows.length - 1];
+    if (!showAll && key && last && last.key === key) {
+      last.count += 1;
+      last.end = ev;
+      last.text += deltaText(ev);
+      continue;
+    }
+    rows.push({ key, start: ev, end: ev, count: 1, text: key ? deltaText(ev) : "" });
+  }
+  return rows;
+}
+
+function drawChatRows() {
+  const body = $("chat-rows");
+  body.replaceChildren();
+  if (!chat.events.length) {
+    const row = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 4;
+    td.textContent = "Send a message to record its events.";
+    row.append(td);
+    body.append(row);
+    $("chat-log-caption").textContent = "Runs of consecutive deltas are merged into one row, with their text joined. Long payloads are shortened; the raw body below has every byte.";
+    return;
+  }
+  const showAll = $("chat-all").checked;
+  const rows = chatRows(showAll);
+  for (const r of rows) {
+    const row = document.createElement("tr");
+    const merged = r.count > 1;
+    cell(row, merged ? `${r.start.index} to ${r.end.index}` : String(r.start.index), { header: true, numeric: true, className: "vbg-custom-nowrap" });
+    cell(row, merged ? `${r.start.t.toFixed(3)} to ${secs(r.end.t, 3)}` : secs(r.start.t, 3), { numeric: true, className: "vbg-custom-nowrap" });
+    cell(row, merged ? `${r.start.type} ×${r.count}` : r.start.type, { mono: true, className: "vbg-custom-nowrap" });
+    const idField = r.start.data && (r.start.data.id ? { id: r.start.data.id } : { toolCallId: r.start.data.toolCallId });
+    const payload = merged
+      ? `${shorten(JSON.stringify({ ...idField, joined: r.text }))}`
+      : payloadOf(r.start);
+    cell(row, payload, { mono: true, className: "vbg-custom-payload" });
+    body.append(row);
+  }
+  $("chat-log-caption").textContent = showAll
+    ? `Showing all ${plural(chat.events.length, "event", "events")}, one per row. Long payloads are shortened; the raw body below has every byte.`
+    : `Showing ${plural(rows.length, "row", "rows")} for ${plural(chat.events.length, "event", "events")}. Runs of consecutive deltas are merged into one row, with their text joined. Long payloads are shortened; the raw body below has every byte.`;
+}
+
+function drawChatTimeline() {
+  const svg = $("chat-svg");
+  clearSvg(svg);
+  const evs = chat.events;
+  const lanes = CHAT_LANES.filter((l) => l.key !== "reasoning" || evs.some((e) => laneOf(e.type) === "reasoning"));
+  const W = svgWidth(svg);
+  const left = 104, right = W - 20, top = 20, laneH = 44;
+  const axisY = top + lanes.length * laneH + 4;
+  svg.setAttribute("viewBox", `0 0 ${W} ${axisY + 40}`);
+  const lastT = evs.length ? evs[evs.length - 1].t : 0;
+  const span = Math.max(1, lastT * 1.06);
+  const x = (s) => left + (s / span) * (right - left);
+  lanes.forEach((lane, i) => {
+    const y = top + i * laneH + laneH / 2 + 6;
+    svg.append(svgEl("text", { class: "vbg-chart-value", x: 0, y: y + 5, fill: "currentColor" }, lane.label));
+    svg.append(svgEl("line", { class: "vbg-chart-gridline", x1: left, x2: right, y1: y, y2: y, stroke: "currentColor" }));
+    if (lane.key === "step") {
+      let open = null, n = 0;
+      const segments = [];
+      for (const e of evs) {
+        if (e.type === "start-step") { open = e.t; n += 1; }
+        if (e.type === "finish-step" && open !== null) { segments.push([open, e.t, n]); open = null; }
       }
-      // Keep a text-only copy of the answer as history (useChat keeps every part).
-      if (full) messages.push({ id: crypto.randomUUID(), role: "assistant", parts: [{ type: "text", text: full }] });
-    };
-  </script>
+      if (open !== null) segments.push([open, lastT, n]);
+      for (const [a, b, k] of segments) {
+        svg.append(svgEl("rect", { class: "vbg-series-fill vbg-series-1", x: x(a), y: y - 5, width: Math.max(x(b) - x(a) - 2, 3), height: 10, fill: "currentColor" }));
+        svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: x(a), y: y - 13, fill: "currentColor" }, `Step ${k}`));
+      }
+      return;
+    }
+    let labelled = false;
+    for (const e of evs) {
+      if (laneOf(e.type) !== lane.key) continue;
+      if (e.type === "error") {
+        svg.append(svgEl("circle", { class: "vbg-data-point vbg-series-fill vbg-series-1", cx: x(e.t), cy: y, r: 6, fill: "currentColor" }));
+        svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: x(e.t), y: y - 12, "text-anchor": "middle", fill: "currentColor" }, "error"));
+        continue;
+      }
+      svg.append(svgEl("line", { class: "vbg-series-stroke vbg-series-1", x1: x(e.t), x2: x(e.t), y1: y - 9, y2: y + 9, stroke: "currentColor", "stroke-width": 2 }));
+      if (lane.key === "tool" && e.type === "tool-input-start" && !labelled) {
+        svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: x(e.t), y: y - 14, fill: "currentColor" }, e.data.toolName));
+        labelled = true;
+      }
+    }
+  });
+  drawAxis(svg, x, left, right, axisY, span);
+  const steps = evs.filter((e) => e.type === "start-step").length;
+  $("chat-svg-desc").textContent = evs.length
+    ? `${plural(evs.length, "event", "events")} over ${secs(lastT)}, across ${plural(steps, "agent step", "agent steps")}.`
+    : "Timeline of chat stream events. Send a message to fill it.";
+}
+
+function fillWire(res) {
+  $("wire-status").textContent = `${res.status} ${res.statusText}`.trim();
+  $("wire-type").textContent = res.headers.get("content-type") || "none";
+  const protocol = res.headers.get("x-vercel-ai-ui-message-stream");
+  if (protocol) $("wire-protocol").replaceChildren(mono(`x-vercel-ai-ui-message-stream: ${protocol}`));
+  else $("wire-protocol").textContent = "No stream protocol header";
+}
+
+function chatSummary() {
+  const evs = chat.events;
+  const lastT = evs.length ? evs[evs.length - 1].t : 0;
+  const steps = evs.filter((e) => e.type === "start-step").length;
+  const tools = evs.filter((e) => e.type === "tool-input-start").map((e) => e.data.toolName);
+  const deltas = evs.filter((e) => e.type === "text-delta").length;
+  const error = evs.find((e) => e.type === "error");
+  const done = evs.some((e) => e.type === "[DONE]");
+  const lines = evs.filter((e) => e.type !== "[DONE]").length;
+  $("wire-events").replaceChildren(`${fmtInt(lines)} `, mono("data:"), ` ${lines === 1 ? "line" : "lines"}, ${done ? "then" : "without"} `, mono("data: [DONE]"));
+  if (error) {
+    setOutcome("chat", `The stream started with status 200, then sent an error event after ${secs(error.t)}. A chat interface would show it as below.`, null);
+    return;
+  }
+  const toolText = tools.length ? `${plural(tools.length, "tool call", "tool calls")} (${[...new Set(tools)].join(", ")}), ` : "no tool call, ";
+  setOutcome("chat", `${plural(evs.length, "event", "events")} in ${secs(lastT)}: ${plural(steps, "model call", "model calls")}, ${toolText}and a reply in ${plural(deltas, "text delta", "text deltas")}.`, done ? null : "The stream ended without the data: [DONE] line.");
+}
+
+async function runChat(event) {
+  event.preventDefault();
+  const text = $("chat-input").value.trim();
+  if (!text) { setOutcome("chat", "Type a message first. Nothing was sent.", null); return; }
+  const button = $("chat-run");
+  button.disabled = true;
+  Object.assign(chat, { events: [], raw: "", text: {}, tools: {}, reasoning: {} });
+  $("chat-parts").replaceChildren();
+  addPart("You", text);
+  for (const id of ["wire-type", "wire-protocol", "wire-events"]) $(id).textContent = "…";
+  $("wire-status").textContent = "Sending";
+  $("chat-raw").textContent = "";
+  drawChatTimeline();
+  drawChatRows();
+  const body = { messages: [{ id: crypto.randomUUID(), role: "user", parts: [{ type: "text", text }] }] };
+  $("chat-request").textContent = JSON.stringify(body, null, 2);
+  setOutcome("chat", "Sent. Waiting for the first event…", null);
+  const started = performance.now();
+  try {
+    const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    fillWire(res);
+    if (!res.ok) {
+      const failure = await res.text();
+      let detail;
+      try { detail = detailOf(JSON.parse(failure)); } catch { detail = failure; }
+      $("chat-raw").textContent = failure;
+      $("wire-events").textContent = "None, the request was refused";
+      addPart("Reply", "None. The function refused the request before any stream started.");
+      setOutcome("chat", `POST /api/chat answered ${res.status}, so no stream started.`, detail);
+      return;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      const t = (performance.now() - started) / 1000;
+      const chunk = decoder.decode(value, { stream: true });
+      chat.raw += chunk;
+      buffer = (buffer + chunk).replace(/\r\n/g, "\n");
+      let sep;
+      // SSE: events are separated by a blank line; each carries one "data: ..." line here.
+      while ((sep = buffer.indexOf("\n\n")) >= 0) {
+        const block = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        const data = block.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).replace(/^ /, "")).join("\n");
+        if (!data) continue;
+        let ev;
+        if (data === "[DONE]") ev = { type: "[DONE]", data: null };
+        else {
+          try { const parsed = JSON.parse(data); ev = { type: String(parsed.type), data: parsed }; }
+          catch { ev = { type: "unparsed", data }; }
+        }
+        ev.t = t;
+        ev.index = chat.events.length + 1;
+        chat.events.push(ev);
+        applyPart(ev);
+      }
+      $("chat-raw").textContent = chat.raw;
+      drawChatTimeline();
+      drawChatRows();
+    }
+    chatSummary();
+  } catch (error) {
+    setOutcome("chat", "The request failed before the stream finished.", error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// Plain-text stream: one tick per read from the response body.
+function drawStreamTimeline(points) {
+  const svg = $("stream-svg");
+  clearSvg(svg);
+  const W = svgWidth(svg);
+  const left = 20, right = W - 20, axisY = 104;
+  svg.setAttribute("viewBox", `0 0 ${W} 144`);
+  const lastT = points.length ? points[points.length - 1].t : 0;
+  const span = Math.max(1, lastT * 1.06);
+  const x = (s) => left + (s / span) * (right - left);
+  drawAxis(svg, x, left, right, axisY, span);
+  for (const p of points) {
+    svg.append(svgEl("line", { class: "vbg-series-stroke vbg-series-1", x1: x(p.t), x2: x(p.t), y1: 56, y2: axisY, stroke: "currentColor", "stroke-width": 2 }));
+  }
+  if (points.length) {
+    const first = points[0].t;
+    svg.append(svgEl("line", { class: "vbg-chart-annotation-line", x1: x(0), x2: x(first), y1: 40, y2: 40, stroke: "currentColor" }));
+    svg.append(svgEl("line", { class: "vbg-chart-annotation-line", x1: x(0), x2: x(0), y1: 34, y2: 46, stroke: "currentColor" }));
+    svg.append(svgEl("line", { class: "vbg-chart-annotation-line", x1: x(first), x2: x(first), y1: 34, y2: 46, stroke: "currentColor" }));
+    svg.append(svgEl("text", { class: "vbg-chart-annotation", x: x(0), y: 24, fill: "currentColor" }, `First text after ${secs(first)}`));
+    if (points.length > 1) {
+      svg.append(svgEl("text", { class: "vbg-chart-annotation", x: x(lastT), y: 24, "text-anchor": "end", fill: "currentColor" }, `Last after ${secs(lastT)}`));
+    }
+  }
+  $("stream-svg-desc").textContent = points.length
+    ? `${plural(points.length, "read", "reads")} arrived between ${secs(points[0].t)} and ${secs(lastT)} after the request.`
+    : "Timeline of text arrival times. Start the stream to fill it.";
+}
+
+let streamPoints = [];
+
+async function runStream(event) {
+  event.preventDefault();
+  const prompt = $("stream-input").value.trim();
+  if (!prompt) { setOutcome("stream", "Type a prompt first. Nothing was sent.", null); return; }
+  const button = $("stream-run");
+  button.disabled = true;
+  const points = (streamPoints = []);
+  const out = $("stream-text");
+  out.textContent = "";
+  drawStreamTimeline(points);
+  setOutcome("stream", "Sent. Waiting for the first piece of text…", null);
+  const started = performance.now();
+  let text = "";
+  try {
+    const res = await fetch(`/api/stream?${new URLSearchParams({ prompt })}`);
+    if (!res.ok) {
+      const failure = await res.text();
+      let detail;
+      try { detail = detailOf(JSON.parse(failure)); } catch { detail = failure; }
+      out.textContent = "No text was streamed.";
+      setOutcome("stream", `GET /api/stream answered ${res.status}, so no stream started.`, detail);
+      return;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      if (!chunk) continue;
+      points.push({ t: (performance.now() - started) / 1000, chars: chunk.length });
+      text += chunk;
+      // The app reports failures after the 200 inline, as "\n[error] ...".
+      out.textContent = text.split("\n[error] ")[0];
+      drawStreamTimeline(points);
+    }
+    const marker = text.indexOf("\n[error] ");
+    if (marker >= 0) {
+      setOutcome("stream", "The stream started with status 200, then the model call failed.", text.slice(marker + 9).trim());
+      return;
+    }
+    if (!points.length) { setOutcome("stream", "The stream closed without any text.", null); return; }
+    const first = points[0].t, lastT = points[points.length - 1].t;
+    setOutcome("stream", points.length > 1
+      ? `${plural(text.length, "character", "characters")} in ${plural(points.length, "read", "reads")}. The first arrived after ${secs(first)}, the rest over the next ${secs(lastT - first)}.`
+      : `All ${plural(text.length, "character", "characters")} arrived in one read after ${secs(first)}. Try a longer prompt to see the spread.`, null);
+  } catch (error) {
+    setOutcome("stream", "The request failed before the stream finished.", error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// Generation: one JSON response with usage and timing.
+async function runGenerate(event) {
+  event.preventDefault();
+  const prompt = $("gen-input").value.trim();
+  if (!prompt) { setOutcome("gen", "Type a prompt first. Nothing was sent.", null); return; }
+  const button = $("gen-run");
+  button.disabled = true;
+  setOutcome("gen", "Sent. The function is waiting for the whole answer…", null);
+  try {
+    const r = await callJSON(`/api/generate?${new URLSearchParams({ prompt })}`);
+    $("gen-raw").textContent = typeof r.body === "string" ? r.body : JSON.stringify(r.body, null, 2);
+    $("gen-raw-wrap").hidden = false;
+    if (r.status !== 200) {
+      $("gen-text-wrap").hidden = true;
+      $("gen-stats").hidden = true;
+      setOutcome("gen", `GET /api/generate answered ${r.status} after ${fmtInt(Math.round(r.ms))} ms.`, detailOf(r.body));
+      return;
+    }
+    const b = r.body, u = b.usage || {};
+    $("gen-text").textContent = b.text;
+    $("gen-text-wrap").hidden = false;
+    $("gen-in").textContent = fmtInt(u.input_tokens ?? 0);
+    $("gen-out").textContent = fmtInt(u.output_tokens ?? 0);
+    $("gen-reason").textContent = u.reasoning_tokens == null ? "Not reported" : fmtInt(u.reasoning_tokens);
+    $("gen-finish").textContent = b.finish_reason ? `Finish reason: ${b.finish_reason}` : "No finish reason reported";
+    $("gen-rtt").textContent = `${fmtInt(Math.round(r.ms))} ms`;
+    $("gen-model-ms").textContent = `${fmtInt(b.model_ms)} ms of it inside the model call`;
+    $("gen-stats").hidden = false;
+    setOutcome("gen", b.response_model
+      ? `Generated by ${b.model}; AI Gateway reports the response came from ${b.response_model}.`
+      : `Generated by ${b.model}.`, null);
+  } catch (error) {
+    setOutcome("gen", "The request failed.", error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+$("chat-form").addEventListener("submit", runChat);
+$("chat-all").addEventListener("change", drawChatRows);
+$("stream-form").addEventListener("submit", runStream);
+$("gen-form").addEventListener("submit", runGenerate);
+drawChatTimeline();
+drawStreamTimeline(streamPoints);
+const widths = new WeakMap();
+const observer = new ResizeObserver((entries) => {
+  for (const { target } of entries) {
+    const w = Math.round(target.getBoundingClientRect().width);
+    if (widths.get(target) === w) continue;
+    widths.set(target, w);
+    if (target.id === "chat-svg") drawChatTimeline();
+    else drawStreamTimeline(streamPoints);
+  }
+});
+for (const id of ["chat-svg", "stream-svg"]) observer.observe($(id));
+loadOpening();
+</script>
 </body>
 </html>

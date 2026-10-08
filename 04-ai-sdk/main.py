@@ -6,6 +6,8 @@ Models are called through Vercel AI Gateway, the SDK's default provider.
 
 import json
 import os
+import time
+from importlib.metadata import version
 from pathlib import Path
 
 import ai
@@ -51,6 +53,7 @@ def index() -> str:
 def info() -> dict:
     return {
         "model": MODEL.id,
+        "ai_version": version("ai"),  # the installed AI SDK for Python, pinned by uv.lock
         "credentials": (
             "AI_GATEWAY_API_KEY" if os.getenv("AI_GATEWAY_API_KEY")
             else "Vercel OIDC" if MODEL.provider.is_configured()
@@ -67,14 +70,24 @@ def info() -> dict:
 @app.get("/api/generate")
 async def generate(prompt: str = "Why is the sky blue?") -> dict:
     require_credentials()
+    started = time.perf_counter()
+    end = None
     try:
         # The SDK always streams; drain it, then read the assembled message.
         async with ai.stream(MODEL, [SYSTEM, ai.user_message(prompt)]) as stream:
-            async for _ in stream:
-                pass
+            async for event in stream:
+                if isinstance(event, ai.events.StreamEnd):
+                    end = event  # carries the finish reason and the model that answered
     except Exception as exc:  # e.g. invalid key, unknown model, OIDC disabled
         raise HTTPException(status_code=502, detail=error_text(exc))
-    return {"model": MODEL.id, "text": stream.text, "usage": stream.usage}
+    return {
+        "model": MODEL.id,
+        "response_model": end.response_model if end else None,
+        "finish_reason": end.finish_reason if end else None,
+        "model_ms": round((time.perf_counter() - started) * 1000),  # time spent in the model call
+        "text": stream.text,
+        "usage": stream.usage,
+    }
 
 
 @app.get("/api/stream")
