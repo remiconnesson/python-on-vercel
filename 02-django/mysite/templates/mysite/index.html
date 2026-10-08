@@ -1,0 +1,31 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Django on Vercel</title>
+  {# Resolves to /static/mysite/style.css, served by Vercel's CDN (not by Django) #}
+  <link rel="stylesheet" href="{% static 'mysite/style.css' %}">
+</head>
+<body>
+  <main>
+    <h1>Django on Vercel</h1>
+    <p class="badge">If this text is on a dark card, the CSS loaded from the CDN.</p>
+
+    <h2>Endpoints</h2>
+    <ul>
+      <li><a href="/">/</a>: this page, a Django template view</li>
+      <li><a href="/api/info">/api/info</a>: a JSON view</li>
+      <li><a href="{% static 'mysite/style.css' %}">{% static 'mysite/style.css' %}</a>: a static file collected at build time</li>
+      <li><a href="/admin/">/admin/</a>: Django admin, styled by its own collected static files (logging in needs <code>DATABASE_URL</code>)</li>
+    </ul>
+
+    <h2>Runtime</h2>
+    <table>
+      {% for key, value in info.items %}
+      <tr><th>{{ key }}</th><td>{{ value|default:"-" }}</td></tr>
+      {% endfor %}
+    </table>
+  </main>
+</body>
+</html>

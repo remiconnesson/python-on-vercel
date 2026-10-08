@@ -1,0 +1,26 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #0b0b0b;
+  color: #ededed;
+}
+
+main {
+  max-width: 40rem;
+  margin: 3rem auto;
+  padding: 2rem;
+  background: #1a1a1a;
+  border-radius: 12px;
+}
+
+a { color: #44b78b; }
+code { color: #f0c674; }
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: #0c4b33;
+}
+
+th { text-align: left; padding-right: 1.5rem; color: #a1a1a1; font-weight: normal; }

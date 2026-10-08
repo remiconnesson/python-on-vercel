@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.vercel/
+.env*.local
+
+# Generated locally by collectstatic / runserver; Vercel builds its own
+staticfiles/
+db.sqlite3

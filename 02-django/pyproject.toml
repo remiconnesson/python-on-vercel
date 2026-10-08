@@ -1,0 +1,16 @@
+[project]
+name = "django-on-vercel"
+version = "0.1.0"
+description = "Minimal Django project deployed to Vercel with zero configuration."
+requires-python = ">=3.12"
+dependencies = [
+    "django>=6.1.1",
+    # Both only matter when DATABASE_URL is set (optional Postgres, e.g. Neon).
+    "dj-database-url>=3.1.2",
+    "psycopg[binary]>=3.3.6",
+]
+
+[tool.vercel.scripts]
+# Vercel runs this after installing dependencies. It does nothing unless a
+# database is attached, so the demo deploys without one.
+build = 'if [ -n "$DATABASE_URL" ]; then python manage.py migrate --noinput; fi'
