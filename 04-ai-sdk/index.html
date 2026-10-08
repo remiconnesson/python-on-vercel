@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI SDK for Python on Vercel</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 16px; }
+    code, pre { font: 12px/1.4 ui-monospace, monospace; }
+    pre { background: #f4f4f5; padding: .75rem; overflow-x: auto; max-height: 18rem; }
+    form { display: flex; gap: .5rem; } input { flex: 1; padding: .4rem; }
+    .user { font-weight: 600; margin-top: 1rem; } .tool { color: #6b7280; }
+  </style>
+</head>
+<body>
+  <h1>AI SDK for Python on Vercel</h1>
+  <p>FastAPI + the <code>ai</code> package, models via AI Gateway. Endpoints:
+    <a href="/api">/api</a>, <a href="/api/generate">/api/generate</a>,
+    <a href="/api/stream">/api/stream</a>, and <code>POST /api/chat</code> (used below).</p>
+  <p>This page reads the same AI SDK UI message stream that <code>useChat</code> from
+    <code>@ai-sdk/react</code> consumes, but parses it by hand so you can see the wire format.</p>
+
+  <div id="chat"></div>
+  <form id="form"><input id="prompt" value="What's the weather in Paris?" autocomplete="off"><button>Send</button></form>
+  <h3>Raw stream</h3>
+  <pre id="raw"></pre>
+
+  <script>
+    const messages = []; // UIMessage[]: what useChat would keep and POST
+    const $ = (id) => document.getElementById(id);
+    const line = (cls, text) => { const p = document.createElement("p"); p.className = cls; p.textContent = text; $("chat").append(p); return p; };
+
+    $("form").onsubmit = async (e) => {
+      e.preventDefault();
+      const text = $("prompt").value; $("prompt").value = ""; $("raw").textContent = "";
+      line("user", text);
+      messages.push({ id: crypto.randomUUID(), role: "user", parts: [{ type: "text", text }] });
+
+      const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages }) });
+      if (!res.ok) { line("tool", `HTTP ${res.status}: ${await res.text()}`); return; }
+
+      let full = "", out = line("assistant", ""), tool, buf = "";
+      const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += value;
+        const events = buf.split("\n\n"); buf = events.pop(); // SSE: one "data: {...}" per event
+        for (const ev of events) {
+          $("raw").textContent += ev + "\n";
+          const data = ev.replace(/^data: /, "");
+          if (data === "[DONE]") continue;
+          const c = JSON.parse(data);
+          if (c.type === "text-delta") { out.textContent += c.delta; full += c.delta; }
+          if (c.type === "tool-input-start") tool = line("tool", `tool call: ${c.toolName} `);
+          if (c.type === "tool-input-delta") tool.textContent += c.inputTextDelta;
+          if (c.type === "tool-output-available") { line("tool", `tool result: ${JSON.stringify(c.output)}`); out = line("assistant", ""); }
+          if (c.type === "error") line("tool", `error: ${c.errorText}`);
+        }
+      }
+      // Keep a text-only copy of the answer as history (useChat keeps every part).
+      if (full) messages.push({ id: crypto.randomUUID(), role: "assistant", parts: [{ type: "text", text: full }] });
+    };
+  </script>
+</body>
+</html>
