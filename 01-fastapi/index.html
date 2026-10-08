@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FastAPI on Vercel</title>
+<meta name="description" content="A FastAPI app deployed to Vercel with no configuration, explained and tested live.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" referrerpolicy="no-referrer">
+<link href="https://vercel.com/geist/vercel-brand.css" rel="stylesheet">
+<style>
+  /* Page-owned layout only. Everything else comes from the published foundation. */
+  .vbg-custom-route { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--vbg-space-6); }
+  ol.vbg-custom-route > li, ol.vbg-custom-route > li + li { margin: 0; min-width: 0; display: grid; gap: var(--vbg-space-2); align-content: start; padding-top: var(--vbg-space-4); border-top: 1px solid var(--vbg-border-strong); }
+  .vbg-custom-route > li > * { margin: 0; }
+  .vbg-custom-output { margin: 0; padding: var(--vbg-space-4); min-height: 6rem; background: var(--vbg-surface-secondary); border: 1px solid var(--vbg-border-subtle); border-radius: var(--vbg-radius-small); font-size: var(--vbg-type-compact); line-height: var(--vbg-leading-compact); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .vbg-custom-controls { display: flex; flex-wrap: wrap; gap: var(--vbg-space-3); align-items: end; }
+  .vbg-custom-controls > * { margin: 0; }
+  .vbg-custom-form { display: grid; gap: var(--vbg-space-4); align-content: start; min-width: 0; }
+  .vbg-custom-form > * { margin: 0; }
+  .vbg-custom-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--vbg-space-3); }
+  .vbg-custom-fields > * { margin: 0; min-width: 0; }
+  .vbg-custom-form textarea { min-height: 6rem; width: 100%; }
+  .vbg-custom-measure { max-width: 68ch; }
+  .vbg-custom-measure > * { margin: 0; }
+  .vbg-custom-timeline { display: block; width: 100%; height: auto; }
+  @media (max-width: 720px) {
+    .vbg-custom-route, .vbg-custom-fields { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body class="vbg-report">
+<div class="vbg-shell">
+  <a class="vbg-skip-link" href="#main">Skip to content</a>
+  <header class="vbg-header">
+    <div class="vbg-masthead">
+      <span class="vbg-identity"><span class="vbg-wordmark" role="img" aria-label="Vercel"></span></span>
+      <div class="vbg-document-meta">
+        <span class="vbg-context">Python on Vercel, demo 1 of 8</span>
+        <span class="vbg-state">Live deployment</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="vbg-opening" aria-labelledby="title">
+      <div class="vbg-opening-claim">
+        <h1 class="vbg-title" id="title">A FastAPI app runs on Vercel as one function, with no configuration</h1>
+        <div class="vbg-custom-measure"><p class="vbg-lede">This page is served by the FastAPI app it describes. Vercel found <code class="vbg-mono">app</code> in <code class="vbg-mono">main.py</code>, installed the locked dependencies, and deployed the whole app as a single Vercel Function. Every number below comes from that function while you read.</p></div>
+      </div>
+      <div class="vbg-opening-proof">
+        <div class="vbg-stat-strip">
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Python</p>
+            <p class="vbg-stat-value" id="stat-python">…</p>
+            <p class="vbg-stat-detail">Chosen from <code class="vbg-mono">.python-version</code></p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Function region</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-region">…</span></p>
+            <p class="vbg-stat-detail" id="stat-edge">Edge location loading</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Instance</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-instance">…</span></p>
+            <p class="vbg-stat-detail" id="stat-uptime">Uptime loading</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Round trip</p>
+            <p class="vbg-stat-value" id="stat-rtt">…</p>
+            <p class="vbg-stat-detail">From this browser, <code class="vbg-mono">GET /</code></p>
+          </div>
+        </div>
+        <p class="vbg-caption" id="opening-status" role="status">Asking the function for its runtime details.</p>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="stream-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="stream-title">Responses stream as they are produced</h2>
+        <p><code class="vbg-mono">GET /stream</code> returns a <code class="vbg-mono">StreamingResponse</code> that yields one line every 0.5 seconds. Python functions on Vercel send each chunk as soon as it is yielded, so the browser receives the lines one by one instead of all at the end.</p>
+      </div>
+      <div class="vbg-custom-controls">
+        <div class="vbg-field">
+          <label class="vbg-label" for="stream-n">Chunks</label>
+          <input id="stream-n" type="number" min="1" max="20" value="8" inputmode="numeric">
+        </div>
+        <button class="vbg-button" id="stream-run" type="button">Start stream</button>
+      </div>
+      <figure class="vbg-chart">
+        <div class="vbg-chart-header">
+          <h3 class="vbg-heading-16">When each chunk reached this browser</h3>
+        </div>
+        <div class="vbg-chart-viewport" tabindex="0">
+          <svg class="vbg-custom-timeline" id="stream-svg" viewBox="0 0 1000 150" role="img" aria-labelledby="stream-svg-desc">
+            <desc id="stream-svg-desc">Timeline of chunk arrival times. Run the stream to fill it.</desc>
+          </svg>
+        </div>
+        <figcaption class="vbg-caption" id="stream-caption">Each mark is one chunk, placed at the moment it arrived. Evenly spaced marks mean the function streamed; a buffered response would put every mark at the end.</figcaption>
+      </figure>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Chunk timings, as sent by the function and received by the browser</caption>
+          <thead>
+            <tr>
+              <th scope="col">Chunk</th>
+              <th scope="col" class="vbg-numeric">Sent by the function</th>
+              <th scope="col" class="vbg-numeric">Received by this browser</th>
+            </tr>
+          </thead>
+          <tbody id="stream-rows">
+            <tr><td colspan="3">Start the stream to record timings.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="reuse-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="reuse-title">One instance serves many requests</h2>
+        <p>The app gives itself a random ID when an instance starts. Fluid compute keeps an instance warm and sends it more requests, so the same ID and a growing uptime mean no cold start. Requests sent at the same time may be spread across instances.</p>
+      </div>
+      <div class="vbg-custom-controls">
+        <button class="vbg-button" id="reuse-seq" type="button">Send 10 requests in a row</button>
+        <button class="vbg-button" id="reuse-par" type="button">Send 10 requests at once</button>
+      </div>
+      <p class="vbg-heading-20" id="reuse-summary" role="status">No requests sent yet.</p>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Instance that answered each request</caption>
+          <thead>
+            <tr>
+              <th scope="col">Request</th>
+              <th scope="col">Instance</th>
+              <th scope="col" class="vbg-numeric">Instance uptime</th>
+              <th scope="col" class="vbg-numeric">Round trip</th>
+              <th scope="col">Edge location</th>
+            </tr>
+          </thead>
+          <tbody id="reuse-rows">
+            <tr><td colspan="5">Send requests to see which instance answers.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="validate-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="validate-title">Type hints turn into validation</h2>
+        <p>FastAPI reads the path, the query string and the JSON body from the function signature, converts them to the declared types, and answers 422 when they don't fit. Nothing about this changes on Vercel.</p>
+      </div>
+      <div class="vbg-grid">
+        <form class="vbg-custom-form vbg-span-6" id="get-form">
+          <h3 class="vbg-heading-16">Path and query parameters</h3>
+          <div class="vbg-custom-fields">
+            <div class="vbg-field">
+              <label class="vbg-label" for="item-id">item_id</label>
+              <input id="item-id" value="42">
+            </div>
+            <div class="vbg-field">
+              <label class="vbg-label" for="item-q">q</label>
+              <input id="item-q" value="shoes">
+            </div>
+            <div class="vbg-field">
+              <label class="vbg-label" for="item-limit">limit</label>
+              <input id="item-limit" value="3">
+            </div>
+          </div>
+          <p class="vbg-helper">Declared as <code class="vbg-mono">item_id: int</code>. Try <code class="vbg-mono">abc</code>.</p>
+          <div class="vbg-custom-controls"><button class="vbg-button" type="submit">Send GET</button></div>
+          <pre class="vbg-custom-output vbg-mono" id="get-out" aria-live="polite">Response appears here.</pre>
+        </form>
+        <form class="vbg-custom-form vbg-span-6" id="post-form">
+          <h3 class="vbg-heading-16">JSON body</h3>
+          <div class="vbg-field">
+            <label class="vbg-label" for="post-body">Body sent to <code class="vbg-mono">POST /items</code></label>
+            <textarea id="post-body" class="vbg-mono" spellcheck="false">{"name": "hat", "price": 10, "tags": ["summer"]}</textarea>
+          </div>
+          <p class="vbg-helper">The <code class="vbg-mono">Item</code> model requires a non-empty name and a price above 0. Try <code class="vbg-mono">"price": -1</code>.</p>
+          <div class="vbg-custom-controls"><button class="vbg-button" type="submit">Send POST</button></div>
+          <pre class="vbg-custom-output vbg-mono" id="post-out" aria-live="polite">Response appears here.</pre>
+        </form>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="how-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="how-title">What Vercel did with this folder</h2>
+        <p>The project contains <code class="vbg-mono">main.py</code>, <code class="vbg-mono">pyproject.toml</code>, <code class="vbg-mono">uv.lock</code> and <code class="vbg-mono">.python-version</code>. There is no <code class="vbg-mono">vercel.json</code>; every decision below came from those files.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Build decisions and the file each one came from</caption>
+          <thead>
+            <tr><th scope="col">Decision</th><th scope="col">Read from</th><th scope="col">Result</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Framework</th><td><code class="vbg-mono">app</code> in <code class="vbg-mono">main.py</code></td><td>FastAPI, deployed as one function that serves every route</td></tr>
+            <tr><th scope="row">Python version</th><td><code class="vbg-mono">.python-version</code></td><td id="build-python">3.14</td></tr>
+            <tr><th scope="row">Dependencies</th><td><code class="vbg-mono">uv.lock</code></td><td>Installed with <code class="vbg-mono">uv sync --no-dev</code>, so the local-only uvicorn is left out</td></tr>
+            <tr><th scope="row">Runtime</th><td>Project defaults</td><td>Fluid compute, 300 second default duration, streaming on</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3 class="vbg-heading-20">The path of your last request</h3>
+      <div class="vbg-span-12">
+      <ol class="vbg-custom-route">
+        <li>
+          <p class="vbg-label">This browser</p>
+          <p>Sends <code class="vbg-mono">GET /</code> with <code class="vbg-mono">Accept: application/json</code>.</p>
+        </li>
+        <li>
+          <p class="vbg-label">Vercel network</p>
+          <p>Received at <span class="vbg-mono" id="route-edge">…</span>, the closest edge location, and routed to the function.</p>
+        </li>
+        <li>
+          <p class="vbg-label">Vercel Function</p>
+          <p>Runs FastAPI in <span class="vbg-mono" id="route-region">…</span> on instance <span class="vbg-mono" id="route-instance">…</span>, and streams the answer back.</p>
+        </li>
+      </ol>
+      </div>
+      <p class="vbg-caption">Read from the <code class="vbg-mono">x-vercel-id</code> response header and the JSON body. Browsers that ask for HTML get this page from the same route.</p>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="audit-title">
+      <h2 class="vbg-heading-24" id="audit-title">Endpoints and limits</h2>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Endpoints served by this app</caption>
+          <thead>
+            <tr><th scope="col">Endpoint</th><th scope="col">What it shows</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><code class="vbg-mono">GET /</code></th><td>This page for browsers, runtime details as JSON for everything else</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /items/{item_id}</code></th><td>Path and query parameters converted from type hints</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">POST /items</code></th><td>A JSON body validated by a Pydantic model</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /stream?n=5</code></th><td>A streamed response, one line every 0.5 seconds, up to 20 lines</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /docs</code></th><td>FastAPI's generated OpenAPI docs</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p>A request can run for up to 300 seconds by default. Instance state, like the uptime above, lives only as long as the instance; keep anything durable in a database. On shutdown, the lifespan handler gets about 500 milliseconds to clean up.</p>
+        <ul class="vbg-sources">
+          <li><a href="https://vercel.com/docs/frameworks/backend/fastapi">FastAPI on Vercel</a></li>
+          <li><a href="https://vercel.com/docs/functions/runtimes/python">Python runtime</a></li>
+          <li><a href="https://vercel.com/docs/fluid-compute">Fluid compute</a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vbg-footer">
+    <span class="vbg-logo" role="img" aria-label="Vercel"></span>
+    <span>Source: <code class="vbg-mono">python-on-vercel-demos/01-fastapi</code></span>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SVG = "http://www.w3.org/2000/svg";
+
+// The x-vercel-id header reads "<edge>::<function region>::<id>" for function responses.
+function parseVercelId(value) {
+  if (!value) return { edge: "local", region: null };
+  const parts = value.split("::");
+  return { edge: parts[0], region: parts.length > 2 ? parts[1] : null };
+}
+
+async function callJSON(path, init = {}) {
+  const started = performance.now();
+  const res = await fetch(path, { ...init, headers: { Accept: "application/json", ...(init.headers || {}) } });
+  const ms = performance.now() - started;
+  const text = await res.text();
+  let body;
+  try { body = JSON.parse(text); } catch { body = text; }
+  return { status: res.status, ms, body, route: parseVercelId(res.headers.get("x-vercel-id")) };
+}
+
+function cell(row, text, { numeric = false, mono = false, header = false } = {}) {
+  const el = document.createElement(header ? "th" : "td");
+  if (header) el.scope = "row";
+  if (numeric) el.className = "vbg-numeric";
+  if (mono) {
+    const code = document.createElement("span");
+    code.className = "vbg-mono";
+    code.textContent = text;
+    el.append(code);
+  } else {
+    el.textContent = text;
+  }
+  row.append(el);
+}
+
+function svgEl(name, attrs, text) {
+  const el = document.createElementNS(SVG, name);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+// Opening proof
+async function loadOpening() {
+  try {
+    const r = await callJSON("/");
+    $("stat-python").textContent = r.body.python;
+    $("stat-region").textContent = r.body.region;
+    $("stat-edge").textContent = `Reached through edge location ${r.route.edge}`;
+    $("stat-instance").textContent = r.body.instance_id;
+    $("stat-uptime").textContent = `Up for ${Math.round(r.body.instance_uptime_s)} seconds`;
+    $("stat-rtt").textContent = `${Math.round(r.ms)} ms`;
+    $("build-python").textContent = r.body.python;
+    $("route-edge").textContent = r.route.edge;
+    $("route-region").textContent = r.body.region;
+    $("route-instance").textContent = r.body.instance_id;
+    $("opening-status").textContent = "Fetched from GET / when this page loaded.";
+  } catch (error) {
+    $("opening-status").textContent = `Could not reach the function: ${error.message}`;
+  }
+}
+
+// Streaming timeline
+function drawTimeline(points, n) {
+  const svg = $("stream-svg");
+  svg.querySelectorAll(":scope > :not(desc)").forEach((el) => el.remove());
+  const left = 40, right = 960, axisY = 100;
+  const lastArrival = points.length ? points[points.length - 1].received : 0;
+  const span = Math.max(n * 0.5, lastArrival) + 0.25;
+  const x = (seconds) => left + (seconds / span) * (right - left);
+  svg.append(svgEl("line", { class: "vbg-chart-axis", x1: left, x2: right, y1: axisY, y2: axisY, stroke: "currentColor" }));
+  for (let s = 0; s <= span; s += 1) {
+    svg.append(svgEl("line", { class: "vbg-chart-gridline", x1: x(s), x2: x(s), y1: axisY, y2: axisY + 6, stroke: "currentColor" }));
+    svg.append(svgEl("text", { class: "vbg-chart-value", x: x(s), y: axisY + 26, "text-anchor": "middle", fill: "currentColor" }, `${s} s`));
+  }
+  const labelEvery = n > 10 ? 2 : 1;
+  points.forEach((p, i) => {
+    svg.append(svgEl("line", { class: "vbg-series-stroke vbg-series-1", x1: x(p.received), x2: x(p.received), y1: 44, y2: axisY, stroke: "currentColor", "stroke-width": 2 }));
+    svg.append(svgEl("circle", { class: "vbg-data-point vbg-series-fill vbg-series-1", cx: x(p.received), cy: 44, r: 5, fill: "currentColor" }));
+    if (i % labelEvery === 0 || i === points.length - 1) {
+      svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: x(p.received), y: 28, "text-anchor": "middle", fill: "currentColor" }, String(p.index)));
+    }
+  });
+  $("stream-svg-desc").textContent = points.length
+    ? `${points.length} chunks arrived between ${points[0].received.toFixed(2)} and ${lastArrival.toFixed(2)} seconds after the request.`
+    : "Timeline of chunk arrival times. Run the stream to fill it.";
+}
+
+function drawStreamRows(points) {
+  const body = $("stream-rows");
+  body.replaceChildren();
+  for (const p of points) {
+    const row = document.createElement("tr");
+    cell(row, String(p.index), { header: true });
+    cell(row, p.sent === null ? "n/a" : `${p.sent.toFixed(1)} s`, { numeric: true });
+    cell(row, `${p.received.toFixed(2)} s`, { numeric: true });
+    body.append(row);
+  }
+}
+
+async function runStream() {
+  const input = $("stream-n");
+  const n = Number(input.value);
+  if (!Number.isInteger(n) || n < 1 || n > 20) {
+    $("stream-caption").textContent = "Choose a whole number of chunks from 1 to 20.";
+    return;
+  }
+  const button = $("stream-run");
+  button.disabled = true;
+  const points = [];
+  drawTimeline(points, n);
+  $("stream-caption").textContent = "Streaming…";
+  const started = performance.now();
+  try {
+    const res = await fetch(`/stream?n=${n}`);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let newline;
+      while ((newline = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, newline);
+        buffer = buffer.slice(newline + 1);
+        const sent = line.match(/t\+([\d.]+)s/);
+        points.push({ index: points.length + 1, sent: sent ? Number(sent[1]) : null, received: (performance.now() - started) / 1000 });
+        drawTimeline(points, n);
+        drawStreamRows(points);
+      }
+    }
+    const gaps = points.slice(1).map((p, i) => p.received - points[i].received);
+    const avg = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : 0;
+    $("stream-caption").textContent = points.length > 1
+      ? `${points.length} chunks arrived on average ${avg.toFixed(2)} seconds apart. The function yields one every 0.50 seconds, so the response was not buffered.`
+      : "One chunk arrived. Ask for more chunks to see the spacing.";
+  } catch (error) {
+    $("stream-caption").textContent = `The stream failed: ${error.message}`;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// Instance reuse
+function drawReuse(results, mode) {
+  const body = $("reuse-rows");
+  body.replaceChildren();
+  results.forEach((r, i) => {
+    const row = document.createElement("tr");
+    cell(row, String(i + 1), { header: true });
+    cell(row, r.body.instance_id, { mono: true });
+    cell(row, `${r.body.instance_uptime_s.toFixed(1)} s`, { numeric: true });
+    cell(row, `${Math.round(r.ms)} ms`, { numeric: true });
+    cell(row, r.route.edge, { mono: true });
+    body.append(row);
+  });
+  const instances = new Set(results.map((r) => r.body.instance_id)).size;
+  $("reuse-summary").textContent = `${results.length} requests ${mode}, answered by ${instances} ${instances === 1 ? "instance" : "instances"}.`;
+}
+
+async function runReuse(parallel) {
+  const buttons = [$("reuse-seq"), $("reuse-par")];
+  buttons.forEach((b) => (b.disabled = true));
+  $("reuse-summary").textContent = "Sending requests…";
+  try {
+    let results;
+    if (parallel) {
+      results = await Promise.all(Array.from({ length: 10 }, () => callJSON("/")));
+    } else {
+      results = [];
+      for (let i = 0; i < 10; i++) results.push(await callJSON("/"));
+    }
+    drawReuse(results, parallel ? "sent at once" : "sent in a row");
+  } catch (error) {
+    $("reuse-summary").textContent = `Requests failed: ${error.message}`;
+  } finally {
+    buttons.forEach((b) => (b.disabled = false));
+  }
+}
+
+// Validation forms
+function show(out, method, path, r) {
+  out.textContent = `${method} ${path}\n${r.status} in ${Math.round(r.ms)} ms\n\n${typeof r.body === "string" ? r.body : JSON.stringify(r.body, null, 2)}`;
+}
+
+$("get-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const id = encodeURIComponent($("item-id").value);
+  const query = new URLSearchParams({ q: $("item-q").value, limit: $("item-limit").value });
+  const path = `/items/${id}?${query}`;
+  $("get-out").textContent = `GET ${path}\nSending…`;
+  try { show($("get-out"), "GET", path, await callJSON(path)); }
+  catch (error) { $("get-out").textContent = `GET ${path}\nFailed: ${error.message}`; }
+});
+
+$("post-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const out = $("post-out");
+  let payload;
+  try { payload = JSON.parse($("post-body").value); }
+  catch (error) { out.textContent = `Not valid JSON, nothing sent.\n${error.message}`; return; }
+  out.textContent = "POST /items\nSending…";
+  try {
+    show(out, "POST", "/items", await callJSON("/items", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }));
+  } catch (error) { out.textContent = `POST /items\nFailed: ${error.message}`; }
+});
+
+$("stream-run").addEventListener("click", runStream);
+$("reuse-seq").addEventListener("click", () => runReuse(false));
+$("reuse-par").addEventListener("click", () => runReuse(true));
+drawTimeline([], Number($("stream-n").value));
+loadOpening();
+</script>
+</body>
+</html>

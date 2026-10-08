@@ -9,11 +9,13 @@ import asyncio
 import os
 import platform
 import time
+import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import FastAPI, Query
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, Query, Request
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 
@@ -22,19 +24,25 @@ async def lifespan(app: FastAPI):
     # Startup runs once per function instance (on a cold start). Fluid compute
     # reuses an instance for many requests, so this state is shared by them.
     app.state.started_at = time.time()
+    app.state.instance_id = uuid.uuid4().hex[:8]
     yield
     # Shutdown: Vercel allows ~500 ms after SIGTERM for cleanup here.
 
 
 app = FastAPI(title="FastAPI on Vercel", lifespan=lifespan)
+INDEX_HTML = (Path(__file__).parent / "index.html").read_text()
 
 
 @app.get("/")
-def index():
+def index(request: Request):
+    # Browsers get the visual explainer (index.html); curl and scripts get JSON.
+    if "text/html" in request.headers.get("accept", ""):
+        return HTMLResponse(INDEX_HTML)
     return {
         "message": "FastAPI running on Vercel",
         "python": platform.python_version(),
         "region": os.environ.get("VERCEL_REGION", "local"),
+        "instance_id": app.state.instance_id,
         "instance_uptime_s": round(time.time() - app.state.started_at, 1),
         "endpoints": {
             "GET /items/{item_id}?q=&limit=": "path + query parameters",

@@ -7,6 +7,7 @@ A single-file FastAPI app that deploys to Vercel with zero configuration: no `ve
 ```
 01-fastapi/
 ├── main.py          # the FastAPI app (Vercel auto-detects `app` here)
+├── index.html       # the visual explainer served at `/` to browsers
 ├── pyproject.toml   # deps: fastapi (runtime), uvicorn (dev group, local only)
 ├── uv.lock          # locked deps; Vercel installs from it with uv
 └── .python-version  # selects Python 3.14 on Vercel (default would be 3.12)
@@ -53,4 +54,4 @@ curl -N "$URL/stream?n=5"
 open $URL/docs
 ```
 
-Call `GET /` a few times on a deployment and watch `instance_uptime_s` climb. That shows Fluid compute reusing one warm instance, and the lifespan startup running once per instance rather than once per request.
+Open the deployment in a browser for a live explainer: it streams, sends requests and shows which instance answered. `curl` on `/` still gets JSON. Call `GET /` a few times on a deployment and watch `instance_uptime_s` climb. That shows Fluid compute reusing one warm instance, and the lifespan startup running once per instance rather than once per request.
