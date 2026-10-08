@@ -1,0 +1,9 @@
+[project]
+name = "containers-on-vercel"
+version = "0.1.0"
+description = "A FastAPI app that Vercel builds from Dockerfile.vercel and runs as a container image on Vercel Functions."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.142.2",
+    "uvicorn>=0.54.0",
+]

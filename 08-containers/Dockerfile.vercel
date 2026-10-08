@@ -1,0 +1,30 @@
+# Vercel detects this file by name (Dockerfile.vercel or Containerfile.vercel),
+# builds it for linux/amd64, pushes it to Vercel Container Registry and runs it
+# on Vercel Functions. The build context is the project's Root Directory.
+FROM python:3.14-slim
+
+# uv, pinned, copied from its official image.
+COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /bin/uv
+
+# A system package: the reason to reach for a container over the native Python runtime.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends figlet \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install dependencies first so this layer stays cached until pyproject.toml or
+# uv.lock changes. --frozen installs exactly what uv.lock pins, without re-resolving.
+# Precompiling .pyc files helps cold starts.
+ENV UV_COMPILE_BYTECODE=1
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-cache
+
+COPY main.py ./
+
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1
+
+# Listen on 0.0.0.0 and on $PORT, falling back to 80 (Vercel's default target port).
+# `exec` makes uvicorn PID 1 so it receives SIGTERM when Vercel scales the instance in.
+CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-80}"]
