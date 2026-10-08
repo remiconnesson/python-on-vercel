@@ -5,6 +5,13 @@ uv project and its own Vercel project, and each has a `README.md` (how to run an
 call it) and a `RESEARCH.md` (what Vercel and the community offer for that topic,
 with links, gotchas, and why the demo is built the way it is).
 
+Open any live link in a browser for a visual explainer of that demo: the page is
+served by the app itself, calls its endpoints while you watch, and shows the
+evidence (regions, instances, timings, headers, task and run states). `curl` on
+the same URL still gets JSON. The pages follow the [Vercel brand design
+guidelines](https://vercel.com/design.dark.md) and load only the published
+`vercel-brand.css` and Geist fonts.
+
 | # | Demo | What it shows | Live |
 |---|------|---------------|------|
 | 1 | [`01-fastapi`](01-fastapi) | Zero-config FastAPI: routing, Pydantic validation, streaming, lifespan, Python 3.14 | [link](https://python-on-vercel-fastapi.vercel.zone) |
@@ -22,8 +29,9 @@ with links, gotchas, and why the demo is built the way it is).
   repo, each with **Root Directory** set to its folder. Pushing to `main` deploys
   to production.
 - Every project uses the ignored build step
-  `git diff --quiet ${VERCEL_GIT_PREVIOUS_SHA:-HEAD^} HEAD -- .`, so a push only
-  rebuilds the demos whose folder changed.
+  `git diff --quiet ${VERCEL_GIT_PREVIOUS_SHA:-HEAD^} HEAD -- . 2>/dev/null || exit 1`,
+  so a push only rebuilds the demos whose folder changed (any git error, such as a
+  commit missing from the shallow clone, means "build").
 - Nothing needs provisioning. The AI demos call AI Gateway with the deployment's
   OIDC token (no API key). `03-celery` and Workflow use Vercel Queues, and Celery
   results go to Runtime Cache, all authenticated by OIDC. The only env var set is
