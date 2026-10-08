@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Celery on Vercel</title>
+<meta name="description" content="A Celery task enqueued by a FastAPI function, delivered by Vercel Queues to a private worker function, and traced live.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" referrerpolicy="no-referrer">
+<link href="https://vercel.com/geist/vercel-brand.css" rel="stylesheet">
+<link rel="icon" href="data:,">
+<style>
+  /* Page-owned layout and marks only. Everything else comes from the published foundation. */
+  .vbg-custom-route { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--vbg-space-6); }
+  ol.vbg-custom-route > li, ol.vbg-custom-route > li + li { margin: 0; min-width: 0; display: grid; gap: var(--vbg-space-2); align-content: start; padding-top: var(--vbg-space-4); border-top: 1px solid var(--vbg-border-strong); }
+  .vbg-custom-route > li > * { margin: 0; }
+  .vbg-custom-controls { display: flex; flex-wrap: wrap; gap: var(--vbg-space-3); align-items: end; margin: 0; }
+  .vbg-custom-controls > * { margin: 0; min-width: 0; }
+  .vbg-custom-number { width: 9rem; }
+  .vbg-custom-measure { max-width: 68ch; }
+  .vbg-custom-measure > * { margin: 0; }
+  .vbg-custom-result { display: grid; gap: var(--vbg-space-2); }
+  .vbg-custom-result > * { margin: 0; }
+  .vbg-custom-svg { display: block; width: 100%; height: auto; }
+  .vbg-custom-nowrap { white-space: nowrap; }
+  .vbg-viz-hollow { fill: var(--vbg-surface-primary); }
+  .vbg-viz-success { fill: var(--vbg-color-success); stroke: var(--vbg-color-success); }
+  @media (max-width: 960px) {
+    .vbg-custom-route { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 560px) {
+    .vbg-custom-route { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body class="vbg-report">
+<div class="vbg-shell">
+  <a class="vbg-skip-link" href="#main">Skip to content</a>
+  <header class="vbg-header">
+    <div class="vbg-masthead">
+      <span class="vbg-identity"><span class="vbg-wordmark" role="img" aria-label="Vercel"></span></span>
+      <div class="vbg-document-meta">
+        <span class="vbg-context">Python on Vercel, demo 3 of 8</span>
+        <span class="vbg-state">Live deployment</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="vbg-opening" aria-labelledby="title">
+      <div class="vbg-opening-claim">
+        <h1 class="vbg-title" id="title">Celery tasks run in their own Vercel Function, with no broker or worker process to manage</h1>
+        <div class="vbg-custom-measure"><p class="vbg-lede">This page is served by a FastAPI function that calls <code class="vbg-mono">add.delay(x, y)</code>. Celery's <code class="vbg-mono">vercel://</code> broker publishes the task to Vercel Queues, Queues invokes a private worker function to run it, and the result comes back through Runtime Cache. When this page loads it enqueues <code class="vbg-mono">add(2, 3)</code>, and the numbers below come from that task.</p></div>
+      </div>
+      <div class="vbg-opening-proof">
+        <div class="vbg-stat-strip">
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Web function instance</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-web">…</span></p>
+            <p class="vbg-stat-detail" id="stat-web-detail">Published the task</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Worker function instance</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-worker">…</span></p>
+            <p class="vbg-stat-detail" id="stat-worker-detail">Ran the task</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Delivered by Queues</p>
+            <p class="vbg-stat-value" id="stat-delivery">…</p>
+            <p class="vbg-stat-detail">From <code class="vbg-mono">.delay()</code> to the worker starting</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Enqueue to SUCCESS</p>
+            <p class="vbg-stat-value" id="stat-total">…</p>
+            <p class="vbg-stat-detail">Seen by this browser, including 2 s of work</p>
+          </div>
+        </div>
+        <p class="vbg-caption" id="opening-status" role="status">Enqueuing <code class="vbg-mono">add(2, 3)</code> and waiting for its result.</p>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="trace-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="trace-title">A task travels from the web function to a worker function and back</h2>
+        <p>Enqueue <code class="vbg-mono">add(x, y)</code> and follow it. The web function publishes the task, Vercel Queues pushes it to the worker function, the worker writes the return value to Runtime Cache, and this page polls <code class="vbg-mono">GET /tasks/{id}</code> every 0.4 seconds until it reads SUCCESS. The task sleeps for 2 seconds to stand in for real work.</p>
+      </div>
+      <div class="vbg-span-12">
+        <form class="vbg-custom-controls" id="trace-form" novalidate>
+          <div class="vbg-custom-number">
+            <div class="vbg-field">
+              <label class="vbg-label" for="arg-x">x</label>
+              <input id="arg-x" type="number" step="1" value="2" inputmode="numeric" required>
+            </div>
+          </div>
+          <div class="vbg-custom-number">
+            <div class="vbg-field">
+              <label class="vbg-label" for="arg-y">y</label>
+              <input id="arg-y" type="number" step="1" value="3" inputmode="numeric" required>
+            </div>
+          </div>
+          <button class="vbg-button" id="trace-run" type="submit">Enqueue add(x, y)</button>
+        </form>
+      </div>
+      <div class="vbg-span-12">
+        <div class="vbg-custom-result">
+          <p class="vbg-heading-20" id="trace-summary" role="status">Waiting for the first task.</p>
+          <p class="vbg-caption" id="trace-detail" hidden></p>
+        </div>
+      </div>
+      <figure class="vbg-chart">
+        <div class="vbg-chart-header">
+          <h3 class="vbg-heading-16">Where the last task was, in seconds after <code class="vbg-mono">.delay()</code></h3>
+        </div>
+        <div class="vbg-chart-viewport" tabindex="0">
+          <svg class="vbg-custom-svg" id="trace-svg" viewBox="0 0 1000 280" role="img" aria-labelledby="trace-svg-desc">
+            <desc id="trace-svg-desc">Timeline of the last task across the web function, Vercel Queues, the worker function and Runtime Cache. It fills in once a task runs.</desc>
+          </svg>
+        </div>
+        <figcaption class="vbg-caption">Hollow marks are polls that read PENDING; the filled mark is the first SUCCESS. Times come from the clock of the function that did each step, so steps on different functions can be a few milliseconds off.</figcaption>
+      </figure>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Every step of the last task, in server time order</caption>
+          <thead>
+            <tr>
+              <th scope="col">Step</th>
+              <th scope="col">Function</th>
+              <th scope="col">Instance</th>
+              <th scope="col">Server time (UTC)</th>
+              <th scope="col" class="vbg-numeric">After <code class="vbg-mono">.delay()</code></th>
+            </tr>
+          </thead>
+          <tbody id="ledger-rows">
+            <tr><td colspan="5">Steps appear here once a task is enqueued.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="split-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="split-title">The worker is a separate, private function</h2>
+        <p>Both functions import <code class="vbg-mono">tasks.py</code>, which gives each instance a random ID when it starts. The web function puts its ID in every response, and the worker puts its own ID in the task's return value. Two different IDs mean the task ran outside the web function.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">The web function and the worker function, side by side</caption>
+          <thead>
+            <tr>
+              <th scope="col"><span class="vbg-visually-hidden">Property</span></th>
+              <th scope="col">Web function</th>
+              <th scope="col">Worker function</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Instance ID</th><td><span class="vbg-mono" id="split-web-instance">…</span></td><td><span class="vbg-mono" id="split-worker-instance">…</span></td></tr>
+            <tr><th scope="row">Region</th><td><span class="vbg-mono" id="split-web-region">…</span></td><td><span class="vbg-mono" id="split-worker-region">…</span></td></tr>
+            <tr><th scope="row">Invoked by</th><td>HTTPS requests, like the ones this page sends</td><td>Vercel Queues, one message per invocation</td></tr>
+            <tr><th scope="row">Public URL</th><td>Yes, it serves every route</td><td>None, only Queues can invoke it</td></tr>
+            <tr><th scope="row">In the last task</th><td id="split-web-did">…</td><td id="split-worker-did">…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="burst-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="burst-title">Each task is its own invocation of the worker</h2>
+        <p>A classic <code class="vbg-mono">celery worker</code> runs tasks in a pool of processes that you size with <span class="vbg-custom-nowrap"><code class="vbg-mono">--concurrency</code></span>. Here there is no pool to size: each message is its own invocation of the worker function. Send five tasks back to back, without waiting for their results, and compare when each one ran.</p>
+      </div>
+      <div class="vbg-span-12">
+        <div class="vbg-custom-controls">
+          <button class="vbg-button" id="burst-run" type="button">Enqueue 5 tasks back to back</button>
+        </div>
+      </div>
+      <div class="vbg-span-12">
+        <div class="vbg-custom-result">
+          <p class="vbg-heading-20" id="burst-summary" role="status">No burst sent yet.</p>
+          <p class="vbg-caption" id="burst-detail" hidden></p>
+        </div>
+      </div>
+      <figure class="vbg-chart" id="burst-figure" hidden>
+        <div class="vbg-chart-header">
+          <h3 class="vbg-heading-16">When each task of the burst ran, in seconds after the first <code class="vbg-mono">.delay()</code></h3>
+        </div>
+        <div class="vbg-chart-viewport" tabindex="0">
+          <svg class="vbg-custom-svg" id="burst-svg" viewBox="0 0 1000 240" role="img" aria-labelledby="burst-svg-desc">
+            <desc id="burst-svg-desc">One row per task of the last burst. It fills in once a burst runs.</desc>
+          </svg>
+        </div>
+        <figcaption class="vbg-caption">Each row is one task, labelled with the worker instance that ran it. The thin line runs from <code class="vbg-mono">.delay()</code> to the worker starting; the bar is the time the worker spent running the task. Bars that overlap ran at the same time.</figcaption>
+      </figure>
+      <div class="vbg-flow vbg-reading">
+        <h3 class="vbg-heading-20">Every task this page enqueued</h3>
+        <p id="history-summary">No tasks yet.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Every task enqueued from this page, with the instances that handled it</caption>
+          <thead>
+            <tr>
+              <th scope="col">Task</th>
+              <th scope="col">Call and result</th>
+              <th scope="col">Web instance</th>
+              <th scope="col">Worker instance</th>
+              <th scope="col" class="vbg-numeric">Delivered after</th>
+              <th scope="col" class="vbg-numeric">Ran for</th>
+              <th scope="col" class="vbg-numeric">Enqueue to SUCCESS</th>
+            </tr>
+          </thead>
+          <tbody id="history-rows">
+            <tr><td colspan="7">Tasks appear here as they finish.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="how-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="how-title">What Vercel set up from this folder</h2>
+        <p>The project contains <code class="vbg-mono">main.py</code>, <code class="vbg-mono">tasks.py</code>, <code class="vbg-mono">worker.py</code>, <code class="vbg-mono">pyproject.toml</code> and <code class="vbg-mono">uv.lock</code>. There is no <code class="vbg-mono">vercel.json</code>, no environment variable and no broker to provision; every decision below came from those files.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">What Vercel built and the file each decision came from</caption>
+          <thead>
+            <tr><th scope="col">Piece</th><th scope="col">Read from</th><th scope="col">Result</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Web function</th><td><code class="vbg-mono">[tool.vercel]</code></td><td>A public function for <code class="vbg-mono">entrypoint = "main:app"</code> that serves every route, including this page</td></tr>
+            <tr><th scope="row">Worker function</th><td><code class="vbg-mono">[[tool.vercel.subscribers]]</code></td><td>A private function for <code class="vbg-mono">entrypoint = "worker:app"</code> with a queue trigger and no URL, generated at build time</td></tr>
+            <tr><th scope="row">Queue topic</th><td>Celery app name and default queue in <code class="vbg-mono">tasks.py</code></td><td><code class="vbg-mono" id="build-topic">celery-celery-on-vercel-celery</code>, named <code class="vbg-mono">celery-&lt;app name&gt;-&lt;queue&gt;</code></td></tr>
+            <tr><th scope="row">Celery adapter</th><td><code class="vbg-mono">celery</code> and <code class="vbg-mono">vercel-celery</code> in <code class="vbg-mono">dependencies</code></td><td>Registers the <code class="vbg-mono">vercel://</code> broker and the <code class="vbg-mono">vercel-runtime-cache://</code> result backend in both functions</td></tr>
+            <tr><th scope="row">Credentials</th><td>None</td><td>Each function authenticates to Queues with the deployment's OIDC token</td></tr>
+            <tr><th scope="row">Result storage</th><td><code class="vbg-mono">backend="vercel-runtime-cache://"</code></td><td>Runtime Cache, which is regional and ephemeral</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3 class="vbg-heading-20">The path of the last task</h3>
+      <div class="vbg-span-12">
+        <ol class="vbg-custom-route">
+          <li>
+            <p class="vbg-label">Web function</p>
+            <p><code class="vbg-mono">POST /tasks</code> enters at edge location <span class="vbg-mono" id="route-edge">…</span> and calls <code class="vbg-mono" id="route-call">add.delay(2, 3)</code> on instance <span class="vbg-mono" id="route-web-instance">…</span> in <span class="vbg-mono" id="route-web-region">…</span>.</p>
+          </li>
+          <li>
+            <p class="vbg-label">Vercel Queues</p>
+            <p>Holds the message on topic <code class="vbg-mono" id="route-topic">celery-celery-on-vercel-celery</code>, pinned to this deployment, and pushes it to the worker.</p>
+          </li>
+          <li>
+            <p class="vbg-label">Worker function</p>
+            <p>Runs the task on instance <span class="vbg-mono" id="route-worker-instance">…</span> in <span class="vbg-mono" id="route-worker-region">…</span>, one task per invocation.</p>
+          </li>
+          <li>
+            <p class="vbg-label">Runtime Cache</p>
+            <p>Keeps the return value in the region until it expires or is evicted. <code class="vbg-mono">GET /tasks/{id}</code> on the web function reads it back.</p>
+          </li>
+        </ol>
+      </div>
+      <p class="vbg-caption">Instance IDs and regions come from the last task's responses, and the edge location from their <code class="vbg-mono">x-vercel-id</code> header. Runtime Cache is regional, so the web function reads results stored in its own region.</p>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="classic-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="classic-title">There is no long-running worker process to keep alive</h2>
+        <p>The task code is ordinary Celery. What changes is who runs it. Instead of a long-lived process that pulls from Redis or RabbitMQ, Vercel Queues invokes the worker function for each message, so no process sits polling a broker between tasks.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">A classic Celery worker compared with this demo on Vercel</caption>
+          <thead>
+            <tr><th scope="col"><span class="vbg-visually-hidden">Aspect</span></th><th scope="col"><code class="vbg-mono">celery -A tasks worker</code></th><th scope="col">This demo on Vercel</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">What runs tasks</th><td>A long-lived process that pulls from the broker</td><td>A function that Queues invokes once per message</td></tr>
+            <tr><th scope="row">Parallelism</th><td><code class="vbg-mono">--concurrency</code> processes in one pool</td><td>More invocations, scaled out by Queues</td></tr>
+            <tr><th scope="row">Broker</th><td>Redis or RabbitMQ that you run</td><td>Vercel Queues, with nothing to provision</td></tr>
+            <tr><th scope="row">Results</th><td>A result backend that you run</td><td>Runtime Cache, regional and ephemeral</td></tr>
+            <tr><th scope="row">Time limit per task</th><td>None</td><td>The function's maximum duration</td></tr>
+            <tr><th scope="row">Scheduling</th><td><code class="vbg-mono">celery beat</code> and worker control commands</td><td>Neither; a Vercel Cron Job can call an endpoint that enqueues</td></tr>
+            <tr><th scope="row">Redelivery</th><td>Set by the broker and <code class="vbg-mono">task_acks_late</code></td><td>At least once; with <code class="vbg-mono">task_acks_late = True</code> a crash or timeout redelivers, so keep tasks idempotent</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="audit-title">
+      <h2 class="vbg-heading-24" id="audit-title">Endpoints and limits</h2>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Endpoints served by the web function</caption>
+          <thead>
+            <tr><th scope="col">Endpoint</th><th scope="col">What it returns</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><code class="vbg-mono">GET /</code></th><td>This page for browsers; the web function's instance, region and queue topic as JSON for everything else</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">POST /tasks?x=2&amp;y=3</code></th><td>Enqueues <code class="vbg-mono">add(x, y)</code> and returns the task ID, when it was published, and the web instance</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /tasks/{task_id}</code></th><td>The status read from Runtime Cache; on SUCCESS, the sum plus the worker's instance, region and timings</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p>Runtime Cache is regional and can evict entries early, and Celery reads a missing result as PENDING, so treat results as short-lived status. Keep results you need in Redis or Postgres. Each task must finish within the function's maximum duration. Queues doesn't defer <code class="vbg-mono">countdown</code> or <code class="vbg-mono">eta</code>: the worker invocation holds the task until it is due, so keep delays short. Each message is consumed by the deployment that published it.</p>
+        <ul class="vbg-sources">
+          <li><a href="https://vercel.com/docs/frameworks/backend/celery">Celery on Vercel</a></li>
+          <li><a href="https://vercel.com/docs/queues/concepts">Vercel Queues concepts</a></li>
+          <li><a href="https://vercel.com/docs/caching/runtime-cache">Runtime Cache</a></li>
+          <li><a href="https://vercel.com/docs/functions/runtimes/python">Python runtime</a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vbg-footer">
+    <span class="vbg-logo" role="img" aria-label="Vercel"></span>
+    <span>Source: <code class="vbg-mono">python-on-vercel-demos/03-celery</code></span>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SVG = "http://www.w3.org/2000/svg";
+const POLL_MS = 400;
+const POLL_LIMIT_MS = 30000;
+const READY = new Set(["SUCCESS", "FAILURE", "REVOKED"]);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// The x-vercel-id header reads "<edge>::<function region>::<id>" for function responses.
+function parseVercelId(value) {
+  if (!value) return { edge: "local", region: null };
+  const parts = value.split("::");
+  return { edge: parts[0], region: parts.length > 2 ? parts[1] : null };
+}
+
+async function callJSON(path, init = {}) {
+  const started = performance.now();
+  const res = await fetch(path, { ...init, headers: { Accept: "application/json", ...(init.headers || {}) } });
+  const ms = performance.now() - started;
+  const text = await res.text();
+  let body;
+  try { body = JSON.parse(text); } catch { body = text; }
+  return { status: res.status, ms, body, route: parseVercelId(res.headers.get("x-vercel-id")) };
+}
+
+// Fill an element with text, or a mix of text, {code} snippets and {mono} identifiers.
+function fill(el, content) {
+  el.replaceChildren();
+  for (const part of Array.isArray(content) ? content : [content]) {
+    if (part && typeof part === "object") {
+      const code = document.createElement(part.code !== undefined ? "code" : "span");
+      code.className = "vbg-mono";
+      code.textContent = part.code !== undefined ? part.code : part.mono;
+      el.append(code);
+    } else {
+      el.append(String(part));
+    }
+  }
+}
+
+function cell(row, content, { numeric = false, mono = false, header = false } = {}) {
+  const el = document.createElement(header ? "th" : "td");
+  if (header) el.scope = "row";
+  if (numeric) el.className = "vbg-numeric";
+  if (mono) {
+    // Keep short identifiers on one line; the table scrolls on narrow screens instead.
+    const keep = document.createElement("span");
+    keep.className = "vbg-custom-nowrap";
+    fill(keep, { mono: content });
+    el.append(keep);
+  } else {
+    fill(el, content);
+  }
+  row.append(el);
+}
+
+function svgEl(name, attrs, text) {
+  const el = document.createElementNS(SVG, name);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+const short = (id) => (id ? id.slice(0, 8) : "n/a");
+const clock = (iso) => (iso ? iso.slice(11, 23) : "n/a");
+const fmtMs = (ms) => (Number.isFinite(ms) ? `${ms < 0 ? "−" : ""}${Math.abs(Math.round(ms)).toLocaleString("en-US")} ms` : "n/a");
+const fmtS = (ms) => (Number.isFinite(ms) ? `${(ms / 1000).toFixed(2)} s` : "n/a");
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const call = (t) => `add(${t.x}, ${t.y})`;
+
+function errorText(r) {
+  if (r.body && typeof r.body === "object" && typeof r.body.detail === "string") return r.body.detail;
+  return typeof r.body === "string" ? r.body.slice(0, 300) : JSON.stringify(r.body);
+}
+
+// A task is traced in two steps: POST /tasks, then GET /tasks/{id} until a ready state.
+// The page keeps one request in flight at a time, which is also what `vercel dev` needs.
+const newTrace = (x, y) => ({ x, y, polls: [], state: "enqueuing", browserStart: performance.now() });
+
+async function enqueue(t) {
+  t.browserStart = performance.now();
+  let r;
+  try {
+    r = await callJSON(`/tasks?x=${t.x}&y=${t.y}`, { method: "POST" });
+  } catch (error) {
+    t.state = "error";
+    t.error = { where: "POST /tasks", message: error.message };
+    return;
+  }
+  if (r.status !== 202) {
+    t.state = "error";
+    t.error = { where: "POST /tasks", status: r.status, message: errorText(r) };
+    return;
+  }
+  t.id = r.body.task_id;
+  t.enqueue = r.body;
+  t.edge = r.route.edge;
+  // Server time of the .delay() call: when Queues accepted the message, minus the publish time.
+  t.t0 = Date.parse(r.body.enqueued_at) - (r.body.publish_ms || 0);
+  t.state = "polling";
+}
+
+async function pollOnce(t) {
+  let p;
+  try {
+    p = await callJSON(`/tasks/${encodeURIComponent(t.id)}`);
+  } catch (error) {
+    t.state = "error";
+    t.error = { where: "GET /tasks/{id}", message: error.message };
+    return;
+  }
+  if (p.status !== 200) {
+    t.state = "error";
+    t.error = { where: "GET /tasks/{id}", status: p.status, message: errorText(p) };
+    return;
+  }
+  t.polls.push({ status: p.body.status, readAt: p.body.read_at, web: p.body.web });
+  if (READY.has(p.body.status)) {
+    t.final = p.body;
+    t.total = performance.now() - t.browserStart;
+    t.state = p.body.status === "SUCCESS" ? "success" : "failed";
+  } else if (performance.now() - t.browserStart > POLL_LIMIT_MS) {
+    t.state = "timeout";
+  }
+}
+
+async function runTask(x, y, onUpdate = () => {}) {
+  const t = newTrace(x, y);
+  await enqueue(t);
+  onUpdate(t);
+  while (t.state === "polling") {
+    await sleep(POLL_MS);
+    await pollOnce(t);
+    onUpdate(t);
+  }
+  return t;
+}
+
+// Derived timings, all relative to the .delay() call (server clocks).
+function timings(t) {
+  const out = {};
+  if (!t.enqueue) return out;
+  const rel = (iso) => Date.parse(iso) - t.t0;
+  out.accepted = rel(t.enqueue.enqueued_at);
+  const w = t.final && t.final.worker;
+  if (w) {
+    out.start = rel(w.started_at);
+    out.finish = rel(w.finished_at);
+    out.stored = t.final.stored_at ? rel(t.final.stored_at) : out.finish;
+    out.run = out.finish - out.start;
+  }
+  const success = t.polls.find((p) => p.status === "SUCCESS");
+  if (success) out.read = rel(success.readAt);
+  return out;
+}
+
+function failureSentence(t) {
+  if (t.state === "error") {
+    const code = t.error.status ? `answered ${t.error.status}` : "could not be reached";
+    return t.error.where === "POST /tasks"
+      ? `POST /tasks ${code}, so nothing was enqueued.`
+      : `Task ${short(t.id)} was enqueued, but GET /tasks/{id} ${code}, so its result could not be read.`;
+  }
+  if (t.state === "timeout") return `Task ${short(t.id)} still read PENDING after ${POLL_LIMIT_MS / 1000} s, so the page stopped polling.`;
+  if (t.state === "failed") return `Task ${short(t.id)} ended in ${t.final.status}.`;
+  return "";
+}
+
+function failureDetail(t) {
+  if (t.state === "error" && t.error.message) {
+    let hint = [];
+    if (t.error.status === 503) {
+      hint = t.error.where === "POST /tasks"
+        ? [" The ", { code: "vercel://" }, " broker exists only on Vercel and under ", { code: "vercel dev" }, "."]
+        : [" Runtime Cache exists only on Vercel; locally, set ", { code: "CELERY_RESULT_BACKEND" }, " as the README shows."];
+    }
+    return [t.error.status ? "The response said: " : "The request failed: ", { code: t.error.message }, ...hint];
+  }
+  if (t.state === "timeout") return "Celery reads a missing result as PENDING. The worker may not have run yet, or Runtime Cache, which is regional and can evict entries, may not hold the result.";
+  return null;
+}
+
+/* Swimlane timeline of one task */
+function chooseScale(spanMs, plotL, plotR) {
+  const width = plotR - plotL;
+  const steps = [250, 500, 1000, 2000, 5000, 10000, 20000, 30000];
+  const step = steps.find((s) => (s / spanMs) * width >= 64) || 60000;
+  const span = Math.ceil(spanMs / step) * step;
+  return { step, span, x: (ms) => plotL + (Math.max(0, ms) / span) * width };
+}
+
+function drawAxis(svg, scale, plotL, plotR, y) {
+  svg.append(svgEl("line", { class: "vbg-chart-axis", x1: plotL, x2: plotR, y1: y, y2: y, stroke: "currentColor" }));
+  const decimals = scale.step < 500 ? 2 : scale.step < 1000 ? 1 : 0;
+  for (let ms = 0; ms <= scale.span; ms += scale.step) {
+    svg.append(svgEl("line", { class: "vbg-chart-gridline", x1: scale.x(ms), x2: scale.x(ms), y1: y, y2: y + 6, stroke: "currentColor" }));
+    svg.append(svgEl("text", { class: "vbg-chart-value", x: scale.x(ms), y: y + 24, "text-anchor": ms === 0 ? "start" : "middle", fill: "currentColor" }, `${(ms / 1000).toFixed(decimals)} s`));
+  }
+}
+
+function clearSvg(svg) {
+  svg.querySelectorAll(":scope > :not(desc)").forEach((el) => el.remove());
+  return Math.max(300, Math.round(svg.getBoundingClientRect().width || 1000));
+}
+
+const approxWidth = (text) => text.length * 7.5;
+
+function drawTrace(t) {
+  const svg = $("trace-svg");
+  const W = clearSvg(svg);
+  const narrow = W < 600;
+  const lanes = ["Web function", "Vercel Queues", "Worker function", "Runtime Cache"];
+  const top = 8, laneH = narrow ? 64 : 56;
+  const lineY = (i) => top + i * laneH + (narrow ? 44 : 30);
+  const plotL = narrow ? 4 : 168, plotR = W - 24;
+  const axisY = lineY(3) + 34;
+  svg.setAttribute("viewBox", `0 0 ${W} ${axisY + 34}`);
+
+  lanes.forEach((name, i) => {
+    svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: 0, y: narrow ? top + i * laneH + 16 : lineY(i) + 4, fill: "currentColor" }, name));
+    svg.append(svgEl("line", { class: "vbg-chart-gridline", x1: plotL, x2: plotR, y1: lineY(i), y2: lineY(i), stroke: "currentColor" }));
+  });
+
+  const m = t ? timings(t) : {};
+  const polls = t && t.enqueue ? t.polls.map((p) => ({ status: p.status, at: Date.parse(p.readAt) - t.t0 })) : [];
+  const latest = Math.max(m.accepted || 0, m.finish || 0, m.stored || 0, ...polls.map((p) => p.at));
+  const scale = chooseScale(Math.max(3000, latest + 250), plotL, plotR);
+  const x = scale.x;
+  drawAxis(svg, scale, plotL, plotR, axisY);
+
+  if (!t || !t.enqueue) {
+    $("trace-svg-desc").textContent = "Timeline of the last task. No task has been traced yet.";
+    return;
+  }
+  const dash = { "stroke-dasharray": "3 3", stroke: "currentColor" };
+
+  // Web function: the publish, then one mark per poll.
+  svg.append(svgEl("line", { class: "vbg-series-stroke vbg-series-1", x1: x(0), x2: Math.max(x(m.accepted), x(0) + 2), y1: lineY(0), y2: lineY(0), stroke: "currentColor", "stroke-width": 4 }));
+  svg.append(svgEl("text", { class: "vbg-chart-annotation", x: x(0), y: lineY(0) - 12, fill: "currentColor" }, ".delay()"));
+  polls.forEach((p) => {
+    const success = p.status === "SUCCESS";
+    svg.append(svgEl("circle", {
+      class: success ? "vbg-data-point vbg-viz-success" : "vbg-data-point vbg-series-stroke vbg-series-1 vbg-viz-hollow",
+      cx: x(p.at), cy: lineY(0), r: success ? 6 : 5, stroke: "currentColor", "stroke-width": 2,
+    }));
+  });
+
+  if (m.read !== undefined) {
+    const near = x(m.read) + 10 + approxWidth("SUCCESS") > W;
+    svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: near ? x(m.read) - 10 : x(m.read) + 10, y: lineY(0) - 12, "text-anchor": near ? "end" : "start", fill: "currentColor" }, "SUCCESS"));
+  }
+
+  if (m.start !== undefined) {
+    // Vercel Queues: from .delay() until the worker starts.
+    svg.append(svgEl("line", { class: "vbg-series-stroke vbg-series-1", x1: x(0), x2: x(m.start), y1: lineY(1), y2: lineY(1), stroke: "currentColor", "stroke-width": 2 }));
+    svg.append(svgEl("text", { class: "vbg-chart-annotation", x: x(0) + 6, y: lineY(1) - 12, fill: "currentColor" }, `delivered after ${fmtMs(m.start)}`));
+
+    // Worker function: the task running.
+    svg.append(svgEl("rect", { class: "vbg-series-fill vbg-series-1", x: x(m.start), y: lineY(2) - 6, width: Math.max(2, x(m.finish) - x(m.start)), height: 12, fill: "currentColor" }));
+    const runLabel = `ran for ${fmtS(m.run)}`;
+    const fits = x(m.finish) - x(m.start) > approxWidth(runLabel) + 12;
+    svg.append(svgEl("text", { class: "vbg-chart-annotation", x: fits ? x(m.start) + 6 : x(m.start) - 6, y: lineY(2) - 14, "text-anchor": fits ? "start" : "end", fill: "currentColor" }, runLabel));
+
+    // Runtime Cache: stored by the worker, read by the web function.
+    if (m.read !== undefined) {
+      svg.append(svgEl("line", { class: "vbg-series-stroke vbg-series-1", x1: x(m.stored), x2: x(m.read), y1: lineY(3), y2: lineY(3), stroke: "currentColor", "stroke-width": 2, "stroke-dasharray": "4 3" }));
+    }
+    svg.append(svgEl("circle", { class: "vbg-series-fill vbg-series-1", cx: x(m.stored), cy: lineY(3), r: 5, fill: "currentColor" }));
+    const cacheLabel = m.read !== undefined ? `stored, read ${fmtMs(m.read - m.stored)} later` : "stored";
+    const cacheEnd = x(m.stored) + approxWidth(cacheLabel) > plotR;
+    svg.append(svgEl("text", { class: "vbg-chart-annotation", x: cacheEnd ? Math.min(plotR, x(m.read ?? m.stored)) : x(m.stored), y: lineY(3) + 22, "text-anchor": cacheEnd ? "end" : "start", fill: "currentColor" }, cacheLabel));
+
+    if (!narrow) {
+      // Hand-offs between lanes.
+      svg.append(svgEl("line", { class: "vbg-chart-annotation-line", x1: x(0), x2: x(0), y1: lineY(0) + 6, y2: lineY(1), ...dash }));
+      svg.append(svgEl("line", { class: "vbg-chart-annotation-line", x1: x(m.start), x2: x(m.start), y1: lineY(1), y2: lineY(2) - 6, ...dash }));
+      svg.append(svgEl("line", { class: "vbg-chart-annotation-line", x1: x(m.stored), x2: x(m.stored), y1: lineY(2) + 6, y2: lineY(3) - 5, ...dash }));
+      if (m.read !== undefined) svg.append(svgEl("line", { class: "vbg-chart-annotation-line", x1: x(m.read), x2: x(m.read), y1: lineY(3), y2: lineY(0) + 6, ...dash }));
+    }
+  }
+
+  const pending = polls.filter((p) => p.status === "PENDING").length;
+  $("trace-svg-desc").textContent = m.start !== undefined
+    ? `Task ${short(t.id)}: .delay() at 0 seconds, delivered to the worker after ${fmtMs(m.start)}, ran for ${fmtS(m.run)}, stored at ${fmtS(m.stored)}, and read as SUCCESS at ${fmtS(m.read)} after ${plural(pending, "PENDING poll", "PENDING polls")}.`
+    : `Task ${short(t.id)}: published at 0 seconds; ${plural(polls.length, "poll", "polls")} so far, the latest reading ${polls.length ? polls[polls.length - 1].status : "nothing yet"}.`;
+}
+
+/* Step-by-step ledger of one task */
+function renderLedger(t) {
+  const body = $("ledger-rows");
+  body.replaceChildren();
+  if (!t.enqueue) {
+    const row = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 5;
+    td.textContent = "No steps to show: the task was not enqueued.";
+    row.append(td);
+    body.append(row);
+    return;
+  }
+  const web = t.enqueue.web;
+  const steps = [
+    { at: t.t0, step: ["Called ", { code: `add.delay(${t.x}, ${t.y})` }], fn: "Web function", inst: web.instance_id },
+    { at: Date.parse(t.enqueue.enqueued_at), step: "Vercel Queues accepted the message", fn: "Web function", inst: web.instance_id },
+  ];
+  t.polls.forEach((p, i) => steps.push({ at: Date.parse(p.readAt), step: [`Poll ${i + 1} read `, { code: p.status }], fn: "Web function", inst: p.web.instance_id }));
+  const w = t.final && t.final.worker;
+  if (w) {
+    steps.push({ at: Date.parse(w.started_at), step: ["Started ", { code: call(t) }], fn: "Worker function", inst: w.instance_id });
+    steps.push({ at: Date.parse(w.finished_at), step: `Returned ${t.final.result}`, fn: "Worker function", inst: w.instance_id });
+    if (t.final.stored_at) steps.push({ at: Date.parse(t.final.stored_at), step: "Wrote the result to Runtime Cache", fn: "Worker function", inst: w.instance_id });
+  }
+  steps.map((s, i) => ({ ...s, i })).sort((a, b) => a.at - b.at || a.i - b.i).forEach((s) => {
+    const row = document.createElement("tr");
+    cell(row, s.step, { header: true });
+    cell(row, s.fn);
+    cell(row, s.inst, { mono: true });
+    cell(row, clock(new Date(s.at).toISOString()), { mono: true });
+    cell(row, fmtMs(s.at - t.t0), { numeric: true });
+    body.append(row);
+  });
+}
+
+function renderTraceSummary(t) {
+  const detail = $("trace-detail");
+  if (t.state === "success") {
+    const pending = t.polls.filter((p) => p.status === "PENDING").length;
+    $("trace-summary").textContent = `${call(t)} = ${t.final.result}, read as SUCCESS ${fmtS(t.total)} after this browser sent it. Polls saw PENDING ${plural(pending, "time", "times")}, then SUCCESS.`;
+    detail.hidden = true;
+    return;
+  }
+  $("trace-summary").textContent = failureSentence(t);
+  const extra = failureDetail(t);
+  detail.hidden = !extra;
+  if (extra) fill(detail, extra);
+}
+
+/* Opening proof, side-by-side table and route, all from the last single task */
+let indexInfo = null;
+
+function renderWebIdentity(web, viaHeader) {
+  $("stat-web").textContent = web.instance_id;
+  fill($("stat-web-detail"), ["Region ", { mono: web.region }, viaHeader ? ", published the task" : ", served this page's data"]);
+  $("split-web-instance").textContent = web.instance_id;
+  $("split-web-region").textContent = web.region;
+  $("route-web-instance").textContent = web.instance_id;
+  $("route-web-region").textContent = web.region;
+}
+
+function renderLastTask(t, fromLoad) {
+  const m = timings(t);
+  if (t.enqueue) renderWebIdentity(t.enqueue.web, true);
+  if (t.edge) $("route-edge").textContent = t.edge;
+  $("route-call").textContent = `add.delay(${t.x}, ${t.y})`;
+  const w = t.final && t.final.worker;
+  if (t.state === "success" && w) {
+    $("stat-worker").textContent = w.instance_id;
+    fill($("stat-worker-detail"), ["Region ", { mono: w.region }, ", ran ", { code: call(t) }]);
+    $("stat-delivery").textContent = fmtMs(m.start);
+    $("stat-total").textContent = fmtS(t.total);
+    $("split-worker-instance").textContent = w.instance_id;
+    $("split-worker-region").textContent = w.region;
+    $("route-worker-instance").textContent = w.instance_id;
+    $("route-worker-region").textContent = w.region;
+    const pollWebs = new Set(t.polls.map((p) => p.web.instance_id));
+    fill($("split-web-did"), ["Published ", { code: call(t) }, ` and answered ${plural(t.polls.length, "poll", "polls")}`, pollWebs.size > 1 ? ` across ${pollWebs.size} instances` : ""]);
+    fill($("split-worker-did"), ["Ran ", { code: call(t) }, ` for ${fmtMs(m.run)} and returned ${t.final.result}`]);
+    const same = w.instance_id === t.enqueue.web.instance_id;
+    fill($("opening-status"), [
+      "From task ", { mono: short(t.id) }, fromLoad ? ", enqueued when this page loaded. " : ", the last task enqueued below. ",
+      same ? "The two instance IDs match." : "The two instance IDs differ: the task ran outside the web function.",
+    ]);
+  } else {
+    for (const id of ["stat-worker", "stat-delivery", "stat-total", "split-worker-instance", "split-worker-region", "route-worker-instance", "route-worker-region"]) $(id).textContent = "n/a";
+    $("split-web-did").textContent = t.enqueue ? `Published ${call(t)}` : "Could not publish the task";
+    $("split-worker-did").textContent = "No result to show";
+    fill($("opening-status"), ["Could not trace a task. ", failureSentence(t), " See the details below."]);
+  }
+}
+
+/* Burst of tasks enqueued back to back */
+function maxOverlap(intervals) {
+  const events = [];
+  intervals.forEach(([s, f]) => { events.push([s, 1]); events.push([f, -1]); });
+  events.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let current = 0, max = 0;
+  for (const [, d] of events) { current += d; max = Math.max(max, current); }
+  return max;
+}
+
+function drawBurst(traces) {
+  const svg = $("burst-svg");
+  const W = clearSvg(svg);
+  const n = traces ? traces.length : 5;
+  const top = 8, rowH = 40;
+  const rowY = (i) => top + i * rowH + 28;
+  const plotL = W < 600 ? 56 : 96, plotR = W - 24;
+  const axisY = rowY(n - 1) + 22;
+  svg.setAttribute("viewBox", `0 0 ${W} ${axisY + 34}`);
+  const enqueued = (traces || []).filter((t) => t.enqueue);
+  const t0 = enqueued.length ? Math.min(...enqueued.map((t) => t.t0)) : 0;
+  const ends = enqueued.filter((t) => t.final && t.final.worker).map((t) => Date.parse(t.final.worker.finished_at) - t0);
+  const scale = chooseScale(Math.max(3000, ...ends.map((e) => e + 250)), plotL, plotR);
+  const x = scale.x;
+  const instances = [];
+  for (let i = 0; i < n; i++) {
+    svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: 0, y: rowY(i) + 4, fill: "currentColor" }, `Task ${i + 1}`));
+    svg.append(svgEl("line", { class: "vbg-chart-gridline", x1: plotL, x2: plotR, y1: rowY(i), y2: rowY(i), stroke: "currentColor" }));
+    const t = traces && traces[i];
+    const w = t && t.final && t.final.worker;
+    if (!w) {
+      if (t) svg.append(svgEl("text", { class: "vbg-chart-annotation", x: plotL, y: rowY(i) - 10, fill: "currentColor" }, t.state === "timeout" ? "still PENDING" : "no result"));
+      continue;
+    }
+    if (!instances.includes(w.instance_id)) instances.push(w.instance_id);
+    const series = `vbg-series-${(instances.indexOf(w.instance_id) % 6) + 1}`;
+    const start = Date.parse(w.started_at) - t0, finish = Date.parse(w.finished_at) - t0;
+    svg.append(svgEl("line", { class: `vbg-series-stroke ${series}`, x1: x(t.t0 - t0), x2: x(start), y1: rowY(i), y2: rowY(i), stroke: "currentColor", "stroke-width": 2 }));
+    svg.append(svgEl("rect", { class: `vbg-series-fill ${series}`, x: x(start), y: rowY(i) - 6, width: Math.max(2, x(finish) - x(start)), height: 12, fill: "currentColor" }));
+    const label = w.instance_id;
+    const end = x(start) + approxWidth(label) > plotR;
+    svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: end ? x(finish) : x(start), y: rowY(i) - 12, "text-anchor": end ? "end" : "start", fill: "currentColor" }, label));
+  }
+  drawAxis(svg, scale, plotL, plotR, axisY);
+  $("burst-svg-desc").textContent = traces
+    ? `${traces.length} tasks enqueued back to back. ${traces.map((t, i) => {
+        const w = t.final && t.final.worker;
+        return w ? `Task ${i + 1} ran from ${fmtS(Date.parse(w.started_at) - t0)} to ${fmtS(Date.parse(w.finished_at) - t0)} on worker instance ${w.instance_id}.` : `Task ${i + 1} has no result.`;
+      }).join(" ")}`
+    : "One row per task of the last burst. No burst has been sent yet.";
+}
+
+function summarizeBurst(traces) {
+  const ok = traces.filter((t) => t.state === "success" && t.final.worker);
+  const detail = $("burst-detail");
+  if (!ok.length) {
+    $("burst-summary").textContent = `None of the ${traces.length} tasks returned a result. ${failureSentence(traces[0])}`;
+    const extra = failureDetail(traces[0]);
+    detail.hidden = !extra;
+    if (extra) fill(detail, extra);
+    return;
+  }
+  const t0 = Math.min(...traces.filter((t) => t.enqueue).map((t) => t.t0));
+  const intervals = ok.map((t) => [Date.parse(t.final.worker.started_at), Date.parse(t.final.worker.finished_at)]);
+  const lastFinish = Math.max(...intervals.map((i) => i[1])) - t0;
+  const workers = new Set(ok.map((t) => t.final.worker.instance_id));
+  const overlap = maxOverlap(intervals);
+  const runSum = intervals.reduce((sum, [s, f]) => sum + (f - s), 0);
+  $("burst-summary").textContent = `${ok.length} of ${traces.length} tasks finished ${fmtS(lastFinish)} after the first .delay(), on ${plural(workers.size, "worker instance", "worker instances")}, with at most ${overlap} running at the same time.`;
+  const local = ok.some((t) => ["dev1", "local"].includes(t.final.worker.region));
+  detail.hidden = false;
+  fill(detail, [
+    `Run one after another, their work alone adds up to ${fmtS(runSum)}.`,
+    local ? " This run is local: under vercel dev a single sidecar process stands in for the worker function, so tasks take turns." : "",
+  ]);
+}
+
+/* Every task this page enqueued */
+const history = [];
+
+function renderHistory() {
+  const body = $("history-rows");
+  body.replaceChildren();
+  history.forEach((t) => {
+    const m = timings(t);
+    const w = t.final && t.final.worker;
+    const row = document.createElement("tr");
+    cell(row, t.id ? short(t.id) : "not enqueued", { header: true, mono: Boolean(t.id) });
+    const outcome = t.state === "success" ? `${call(t)} = ${t.final.result}`
+      : t.state === "timeout" ? `${call(t)}, still PENDING`
+      : t.state === "failed" ? `${call(t)}, ${t.final.status}`
+      : `${call(t)}, ${t.error.status || "no"} response from ${t.error.where}`;
+    cell(row, outcome);
+    cell(row, t.enqueue ? t.enqueue.web.instance_id : "n/a", { mono: Boolean(t.enqueue) });
+    cell(row, w ? w.instance_id : "n/a", { mono: Boolean(w) });
+    cell(row, w ? fmtMs(m.start) : "n/a", { numeric: true });
+    cell(row, w ? fmtMs(m.run) : "n/a", { numeric: true });
+    cell(row, t.state === "success" ? fmtS(t.total) : "n/a", { numeric: true });
+    body.append(row);
+  });
+  const ok = history.filter((t) => t.state === "success" && t.final.worker);
+  if (!ok.length) {
+    $("history-summary").textContent = `${plural(history.length, "task", "tasks")} enqueued, none with a result yet.`;
+    return;
+  }
+  const workers = new Set(ok.map((t) => t.final.worker.instance_id));
+  const webs = new Set();
+  ok.forEach((t) => { webs.add(t.enqueue.web.instance_id); t.polls.forEach((p) => webs.add(p.web.instance_id)); });
+  const shared = [...workers].filter((id) => webs.has(id)).length;
+  $("history-summary").textContent = `${plural(ok.length, "task", "tasks")} ran on ${plural(workers.size, "worker instance", "worker instances")}, while the web app answered from ${plural(webs.size, "instance", "instances")}. ${shared ? `${shared} instance ID appears on both sides.` : "No task ran on an instance that served the web app."}`;
+}
+
+/* Controls */
+let lastTrace = null, lastBurst = null;
+
+function setBusy(busy) {
+  $("trace-run").disabled = busy;
+  $("burst-run").disabled = busy;
+}
+
+async function runSingle(x, y, fromLoad) {
+  setBusy(true);
+  $("trace-summary").textContent = `Enqueuing ${call({ x, y })}…`;
+  $("trace-detail").hidden = true;
+  const t = await runTask(x, y, (trace) => {
+    lastTrace = trace;
+    drawTrace(trace);
+    renderLedger(trace);
+    if (trace.state === "polling" && trace.polls.length === 0) {
+      $("trace-summary").textContent = `Enqueued task ${short(trace.id)}. Polling for its result…`;
+    }
+  });
+  renderTraceSummary(t);
+  renderLastTask(t, fromLoad);
+  history.push(t);
+  renderHistory();
+  setBusy(false);
+}
+
+async function runBurst() {
+  setBusy(true);
+  $("burst-detail").hidden = true;
+  $("burst-summary").textContent = "Enqueuing 5 tasks back to back…";
+  // Publish all five without waiting for results, then poll them in turn.
+  const traces = [1, 2, 3, 4, 5].map((x) => newTrace(x, 10));
+  for (const t of traces) await enqueue(t);
+  let reported = 0;
+  while (traces.some((t) => t.state === "polling")) {
+    await sleep(POLL_MS);
+    for (const t of traces) if (t.state === "polling") await pollOnce(t);
+    const finished = traces.filter((t) => t.state !== "polling").length;
+    if (finished !== reported && finished < traces.length) {
+      reported = finished;
+      $("burst-summary").textContent = `${finished} of ${traces.length} tasks finished…`;
+    }
+  }
+  lastBurst = traces;
+  $("burst-figure").hidden = false;
+  drawBurst(traces);
+  summarizeBurst(traces);
+  history.push(...traces);
+  renderHistory();
+  setBusy(false);
+}
+
+function readInt(id) {
+  const raw = $(id).value.trim();
+  const n = Number(raw);
+  return raw !== "" && Number.isSafeInteger(n) && Math.abs(n) <= 1e9 ? n : null;
+}
+
+$("trace-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const x = readInt("arg-x"), y = readInt("arg-y");
+  if (x === null || y === null) {
+    $("trace-summary").textContent = "Enter whole numbers for x and y, between -1,000,000,000 and 1,000,000,000.";
+    return;
+  }
+  runSingle(x, y, false);
+});
+$("burst-run").addEventListener("click", runBurst);
+
+async function loadIndex() {
+  try {
+    const r = await callJSON("/");
+    if (r.status !== 200 || typeof r.body !== "object") return;
+    indexInfo = r.body;
+    if (!lastTrace || !lastTrace.enqueue) {
+      renderWebIdentity(r.body.web, false);
+      $("route-edge").textContent = r.route.edge;
+    }
+    if (r.body.queue_topic) {
+      $("build-topic").textContent = r.body.queue_topic;
+      $("route-topic").textContent = r.body.queue_topic;
+    }
+  } catch { /* the task run reports connection problems */ }
+}
+
+// Redraw the charts at their real width so labels stay legible on every screen.
+let lastWidth = 0;
+new ResizeObserver((entries) => {
+  const width = Math.round(entries[0].contentRect.width);
+  if (width === lastWidth) return;
+  lastWidth = width;
+  drawTrace(lastTrace);
+  drawBurst(lastBurst);
+}).observe($("trace-svg"));
+
+// Start shortly after load, so the browser's own /favicon.ico request is done first:
+// `vercel dev` stops its Python server when two requests overlap (see README).
+window.addEventListener("load", () => setTimeout(() => loadIndex().then(() => runSingle(2, 3, true)), 300));
+</script>
+</body>
+</html>

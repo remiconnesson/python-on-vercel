@@ -12,7 +12,8 @@ GET /tasks/{id} ◀──────────────── AsyncResult 
 ```
 03-celery/
 ├── main.py         FastAPI web app: GET / (index), POST /tasks (enqueue), GET /tasks/{id} (status + result)
-├── tasks.py        Celery app (broker vercel://, backend vercel-runtime-cache://) and the add(x, y) task
+├── index.html      Visual explainer served at / to browsers: traces a live task from web function to worker and back
+├── tasks.py        Celery app (broker vercel://, backend vercel-runtime-cache://), the add(x, y) task, per-instance id
 ├── worker.py       Subscriber entrypoint that re-exports the Celery app; becomes the private worker function
 ├── pyproject.toml  Dependencies, [tool.vercel] web entrypoint, [[tool.vercel.subscribers]] worker
 ├── uv.lock         Locked dependencies
@@ -34,7 +35,11 @@ mkdir -p /tmp/celery-results
 CELERY_RESULT_BACKEND=file:///tmp/celery-results vercel dev --local --listen 3000
 ```
 
-`--local` skips project linking. A plain `vercel dev` in a linked project works too. Without the `CELERY_RESULT_BACKEND` override, tasks still run (you'll see `Task tasks.add[...] succeeded` in the worker logs), but `GET /tasks/{id}` returns a 503 that explains Runtime Cache is unavailable. Under plain `uvicorn`, which has no Vercel runtime, `POST /tasks` returns a 503 with `No such transport: vercel`.
+`--local` skips project linking. A plain `vercel dev` in a linked project works too. Without the `CELERY_RESULT_BACKEND` override, tasks still run (you'll see `Task tasks.add[...] succeeded` in the worker logs), but `GET /tasks/{id}` returns a 503 that explains Runtime Cache is unavailable. Under plain `uvicorn`, which has no Vercel runtime, `POST /tasks` returns a 503 with `No such transport: vercel`, and the explainer page shows that error.
+
+Locally the region reads `dev1`, and one sidecar process stands in for the worker function, so a burst of tasks runs one at a time. `main.py` reads `index.html` once at import, so restart `vercel dev` after editing the page.
+
+`vercel dev` (CLI 59.4.0) stops the Python web server when two requests to it overlap, and every later request returns 500 `FUNCTION_INVOCATION_FAILED` until you restart it. The explainer page keeps one request in flight at a time, but reloading it in the middle of a poll can still trigger this. Deployed functions aren't affected.
 
 ## Deploy
 
@@ -45,21 +50,34 @@ CELERY_RESULT_BACKEND=file:///tmp/celery-results vercel dev --local --listen 300
 
 ## Try it
 
+Open the app in a browser for a live explainer. It enqueues `add(2, 3)` when it loads, then draws the task's path from the web function through Vercel Queues to the worker function and back, with real timestamps, the instance ID and region of each function, and a burst of five tasks to show how the worker scales. `curl` on `/` still gets JSON.
+
+Each instance gives itself a random 8-character ID when it starts (`INSTANCE_ID` in `tasks.py`). The web function returns its own ID as `web`, and `add()` returns the worker's ID with the sum, so you can see the task ran in a different function.
+
 ```bash
 BASE=http://localhost:3000   # or https://<your-deployment>.vercel.app
 
 curl -s $BASE/
-# {"demo": "...", "endpoints": {...}}
+# {"demo": "...", "web": {"instance_id": "29349ee9", "region": "iad1"},
+#  "queue_topic": "celery-celery-on-vercel-celery", "endpoints": {...}}
 
 curl -s -X POST "$BASE/tasks?x=2&y=3"
-# {"task_id":"a1c1e820-...","status_url":"/tasks/a1c1e820-..."}
+# {"task_id": "86a8d154-...", "status_url": "/tasks/86a8d154-...",
+#  "enqueued_at": "2026-10-08T14:28:02.585+00:00", "publish_ms": 122.9,
+#  "web": {"instance_id": "29349ee9", "region": "iad1"}}
 
 curl -s $BASE/tasks/<task_id>
-# {"task_id":"a1c1e820-...","status":"PENDING","result":null}   <- during the task's 2 s of "work"
-# {"task_id":"a1c1e820-...","status":"SUCCESS","result":5}
+# During the task's 2 s of "work":
+# {"task_id": "86a8d154-...", "status": "PENDING", "result": null, "worker": null,
+#  "stored_at": null, "read_at": "...", "web": {...}}
+# Then:
+# {"task_id": "86a8d154-...", "status": "SUCCESS", "result": 5,
+#  "worker": {"instance_id": "1842a29f", "region": "iad1",
+#             "started_at": "2026-10-08T14:28:02.611+00:00", "finished_at": "2026-10-08T14:28:04.615+00:00"},
+#  "stored_at": "2026-10-08T14:28:04.618+00:00", "read_at": "...", "web": {"instance_id": "29349ee9", ...}}
 ```
 
-An unknown or expired task id reads as `PENDING`. That's Celery's behavior when the result backend has no entry.
+`result` is still the sum. `worker` comes from the task's return value, `stored_at` is Celery's `date_done` (when the worker wrote the result), and `read_at` is when the web function read it. All times are UTC from each function's own clock. An unknown or expired task id reads as `PENDING`. That's Celery's behavior when the result backend has no entry.
 
 ## Gotchas
 
