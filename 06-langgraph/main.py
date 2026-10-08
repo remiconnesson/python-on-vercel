@@ -6,11 +6,13 @@ OpenAI-compatible endpoint, authenticated with an API key or the Vercel OIDC tok
 """
 
 import os
+import time
 import uuid
 from collections.abc import AsyncIterable
+from pathlib import Path
 
-from fastapi import Depends, FastAPI
-from fastapi.responses import JSONResponse
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from langchain_core.messages import AIMessageChunk, BaseMessage
 from langchain_core.tools import tool
@@ -24,6 +26,13 @@ from vercel.oidc.aio import get_vercel_oidc_token
 
 AI_GATEWAY_URL = "https://ai-gateway.vercel.sh/v1"
 MODEL = os.getenv("AI_GATEWAY_MODEL", "openai/gpt-5.4-nano")
+
+# Created once per function instance (at cold start). Responses include it so you
+# can tell whether two requests reached the same instance, and so the same memory.
+INSTANCE_ID = uuid.uuid4().hex[:8]
+STARTED_AT = time.time()
+# The explainer page, read once at import (restart the server after editing it).
+INDEX_HTML = (Path(__file__).parent / "index.html").read_text()
 
 
 # --- Credentials -------------------------------------------------------------
@@ -53,6 +62,15 @@ async def gateway_api_key() -> str:
             "`--env-file .env.local` to use VERCEL_OIDC_TOKEN. "
             "Deployed on Vercel, the OIDC token is provided automatically."
         ) from e
+
+
+async def credential_source() -> str:
+    """Name the credential gateway_api_key() would use, without returning it."""
+    try:
+        await gateway_api_key()
+    except MissingCredentials:
+        return "none"
+    return "api_key" if os.getenv("AI_GATEWAY_API_KEY") else "oidc"
 
 
 # --- The graph: agent <-> tools loop -----------------------------------------
@@ -114,11 +132,25 @@ def run(req: ChatRequest) -> tuple[dict, dict]:
     return {"messages": [{"role": "user", "content": req.message}]}, config
 
 
+async def prior_messages(config: dict) -> int:
+    # Messages this instance already holds for the thread: 0 for a new thread, or
+    # for a known one whose memory lives on another instance (or was lost).
+    state = await graph.aget_state(config)
+    return len(state.values.get("messages", []))
+
+
 @app.get("/")
-def index():
+async def index(request: Request):
+    # Browsers get the visual explainer (index.html); curl and scripts get JSON.
+    if "text/html" in request.headers.get("accept", ""):
+        return HTMLResponse(INDEX_HTML)
     return {
         "demo": "LangGraph agent (agent <-> tools) on Vercel, model via AI Gateway",
         "model": MODEL,
+        "credential": await credential_source(),
+        "region": os.environ.get("VERCEL_REGION", "local"),
+        "instance_id": INSTANCE_ID,
+        "instance_uptime_s": round(time.time() - STARTED_AT, 1),
         "endpoints": {
             "POST /invoke": "run the graph to the end, return the answer as JSON",
             "POST /stream": "run the graph, stream tokens and node updates as SSE",
@@ -131,12 +163,15 @@ def index():
 @app.post("/invoke", dependencies=[Depends(gateway_api_key)])
 async def invoke(req: ChatRequest):
     inputs, config = run(req)
+    prior = await prior_messages(config)
     try:
         state = await graph.ainvoke(inputs, config)
     except Exception as e:  # e.g. AI Gateway rejected the credential or the model id
         return JSONResponse(status_code=502, content={"error": f"{type(e).__name__}: {e}"})
     return {
         "thread_id": config["configurable"]["thread_id"],
+        "instance_id": INSTANCE_ID,
+        "prior_messages": prior,
         "answer": state["messages"][-1].text,
         "messages": [summarize(m) for m in state["messages"]],
     }
@@ -146,7 +181,14 @@ async def invoke(req: ChatRequest):
 @app.post("/stream", response_class=EventSourceResponse, dependencies=[Depends(gateway_api_key)])
 async def stream(req: ChatRequest) -> AsyncIterable[ServerSentEvent]:
     inputs, config = run(req)
-    yield ServerSentEvent(event="thread", data={"thread_id": config["configurable"]["thread_id"]})
+    yield ServerSentEvent(
+        event="thread",
+        data={
+            "thread_id": config["configurable"]["thread_id"],
+            "instance_id": INSTANCE_ID,
+            "prior_messages": await prior_messages(config),
+        },
+    )
     try:
         async for part in graph.astream(
             inputs,

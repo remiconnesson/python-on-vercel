@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LangGraph on Vercel</title>
+<meta name="description" content="A LangGraph agent served by FastAPI on Vercel, with the model reached through AI Gateway, explained and tested live.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" referrerpolicy="no-referrer">
+<link href="https://vercel.com/geist/vercel-brand.css" rel="stylesheet">
+<style>
+  /* Page-owned layout and diagram marks only. Everything else comes from the published foundation. */
+  .vbg-custom-measure { max-width: 68ch; }
+  .vbg-custom-measure > * { margin: 0; }
+  .vbg-custom-controls { display: flex; flex-wrap: wrap; gap: var(--vbg-space-3); align-items: end; }
+  .vbg-custom-controls > * { margin: 0; min-width: 0; }
+  .vbg-custom-grow { flex: 1 1 18rem; max-width: 28rem; }
+  .vbg-custom-grow input { width: 100%; }
+  .vbg-custom-form { display: grid; gap: var(--vbg-space-4); align-content: start; min-width: 0; margin: 0; }
+  .vbg-custom-form > * { margin: 0; min-width: 0; }
+  .vbg-custom-form input { width: 100%; }
+  .vbg-custom-tool { display: grid; gap: var(--vbg-space-8); align-content: start; min-width: 0; }
+  .vbg-custom-tool > * { margin: 0; min-width: 0; }
+  .vbg-custom-answer { display: grid; gap: var(--vbg-space-2); align-content: start; min-height: 7rem; padding-top: var(--vbg-space-4); border-top: 1px solid var(--vbg-border-subtle); }
+  .vbg-custom-answer > * { margin: 0; overflow-wrap: anywhere; }
+  .vbg-custom-group { display: grid; gap: var(--vbg-space-3); min-width: 0; }
+  .vbg-custom-group > * { margin: 0; min-width: 0; }
+  .vbg-custom-output { margin: 0; padding: var(--vbg-space-4); background: var(--vbg-surface-secondary); border: 1px solid var(--vbg-border-subtle); border-radius: var(--vbg-radius-small); font-size: var(--vbg-type-compact); line-height: var(--vbg-leading-compact); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .vbg-custom-disclosure > summary { cursor: pointer; }
+  .vbg-custom-disclosure > pre { margin-top: var(--vbg-space-3); }
+  .vbg-custom-svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .vbg-custom-nowrap { white-space: nowrap; }
+  .vbg-custom-ledger { min-width: 40rem; }
+  .vbg-custom-route { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--vbg-space-6); }
+  ol.vbg-custom-route > li, ol.vbg-custom-route > li + li { margin: 0; min-width: 0; display: grid; gap: var(--vbg-space-2); align-content: start; padding-top: var(--vbg-space-4); border-top: 1px solid var(--vbg-border-strong); }
+  .vbg-custom-route > li > * { margin: 0; }
+
+  /* Graph diagram: state is carried by outline weight, dash and the state label, not by color alone. */
+  .vbg-viz-node rect { fill: var(--vbg-surface-primary); stroke: var(--vbg-border-strong); stroke-width: 1; stroke-dasharray: 4 4; transition: stroke-width 160ms ease-out; }
+  .vbg-viz-node[data-state="running"] rect { stroke: var(--vbg-text-primary); stroke-width: 3; stroke-dasharray: none; }
+  .vbg-viz-node[data-state="done"] rect { stroke: var(--vbg-text-primary); stroke-width: 1.5; stroke-dasharray: none; }
+  .vbg-viz-node[data-state="failed"] rect { stroke: var(--vbg-color-error); stroke-width: 3; stroke-dasharray: none; }
+  .vbg-viz-edge line { stroke: var(--vbg-border-strong); stroke-width: 1; stroke-dasharray: 4 4; }
+  .vbg-viz-edge polygon { fill: var(--vbg-border-strong); }
+  .vbg-viz-edge[data-taken] line { stroke: var(--vbg-text-primary); stroke-width: 2; stroke-dasharray: none; }
+  .vbg-viz-edge[data-taken] polygon { fill: var(--vbg-text-primary); }
+  .vbg-viz-terminal { fill: var(--vbg-text-primary); stroke: var(--vbg-text-primary); stroke-width: 1.5; }
+  .vbg-viz-terminal[data-state="waiting"] { fill: var(--vbg-surface-primary); stroke: var(--vbg-border-strong); stroke-dasharray: 3 3; }
+  .vbg-viz-failed { fill: var(--vbg-color-error); }
+  @media (prefers-reduced-motion: reduce) { .vbg-viz-node rect { transition: none; } }
+
+  @media (max-width: 960px) { .vbg-custom-route { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 720px) { .vbg-custom-route { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body class="vbg-report">
+<div class="vbg-shell">
+  <a class="vbg-skip-link" href="#main">Skip to content</a>
+  <header class="vbg-header">
+    <div class="vbg-masthead">
+      <span class="vbg-identity"><span class="vbg-wordmark" role="img" aria-label="Vercel"></span></span>
+      <div class="vbg-document-meta">
+        <span class="vbg-context">Python on Vercel, demo 6 of 8</span>
+        <span class="vbg-state">Live deployment</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="vbg-opening" aria-labelledby="title">
+      <div class="vbg-opening-claim">
+        <h1 class="vbg-title" id="title">A LangGraph agent runs inside one Vercel Function and streams each step as it happens</h1>
+        <div class="vbg-custom-measure"><p class="vbg-lede">This page is served by the FastAPI app that runs the agent. The agent is a small graph: the <code class="vbg-mono">agent</code> node asks the model what to do, the <code class="vbg-mono">tools</code> node runs a <code class="vbg-mono">multiply</code> function when the model asks for it, and the loop ends when the model answers. The model is reached through AI Gateway with a short-lived token that Vercel issues to the deployment (OIDC), so no API key is stored.</p></div>
+      </div>
+      <div class="vbg-opening-proof">
+        <div class="vbg-stat-strip">
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Model</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-model">…</span></p>
+            <p class="vbg-stat-detail" id="stat-provider">Provider loading</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">AI Gateway credential</p>
+            <p class="vbg-stat-value" id="stat-credential">…</p>
+            <p class="vbg-stat-detail" id="stat-credential-detail">Checked by the function</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Function region</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-region">…</span></p>
+            <p class="vbg-stat-detail" id="stat-edge">Edge location loading</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Instance</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-instance">…</span></p>
+            <p class="vbg-stat-detail" id="stat-uptime">Uptime loading</p>
+          </div>
+        </div>
+        <p class="vbg-caption" id="opening-status" role="status">Asking the function for its model, credential and instance.</p>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="run-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="run-title">The stream reports each node as it finishes, and the answer token by token</h2>
+        <p><code class="vbg-mono">POST /stream</code> runs the graph and answers with Server-Sent Events, a standard format for sending a series of events over one open HTTP response. A <code class="vbg-mono">thread</code> event comes first, then an <code class="vbg-mono">update</code> each time a node finishes and a <code class="vbg-mono">token</code> event for each piece of text the model writes. The page reads the response body itself, because the browser's <code class="vbg-mono">EventSource</code> only sends GET requests.</p>
+      </div>
+      <div class="vbg-grid">
+        <div class="vbg-span-5"><div class="vbg-custom-tool">
+          <form class="vbg-custom-form" id="run-form">
+            <div class="vbg-field">
+              <label class="vbg-label" for="message">Message</label>
+              <input id="message" value="What is 12.5 times 4?" maxlength="200" autocomplete="off" required>
+            </div>
+            <p class="vbg-helper">Starts a new thread. The model decides whether to call <code class="vbg-mono">multiply</code>. Nothing calls the model until you send.</p>
+            <div class="vbg-custom-controls"><button class="vbg-button" type="submit" id="run-button">Stream a run</button></div>
+            <p class="vbg-caption" id="run-status" role="status">Nothing sent yet.</p>
+          </form>
+          <div class="vbg-custom-answer">
+            <p class="vbg-label">Answer, as it streamed</p>
+            <p class="vbg-caption" id="answer-empty">The model's text appears here as token events arrive.</p>
+            <p class="vbg-heading-20" id="answer" hidden></p>
+          </div>
+        </div></div>
+        <div class="vbg-span-7">
+          <figure class="vbg-chart">
+            <div class="vbg-chart-header">
+              <h3 class="vbg-heading-16">Which node holds control</h3>
+            </div>
+            <div class="vbg-chart-viewport" tabindex="0">
+              <svg class="vbg-custom-svg" id="graph-svg" viewBox="0 0 560 180" role="img" aria-labelledby="graph-desc">
+                <desc id="graph-desc">Graph from START to agent. agent goes to tools when the model asks for a tool call, tools returns to agent, and agent goes to END when there are no tool calls. Nothing has run yet.</desc>
+              </svg>
+            </div>
+            <figcaption class="vbg-caption">A thick outline marks the node that is running: from the event that hands it control until its own <code class="vbg-mono">update</code> arrives. Solid edges were taken in this run; dashed edges were not.</figcaption>
+          </figure>
+        </div>
+      </div>
+      <figure class="vbg-chart">
+        <div class="vbg-chart-header">
+          <h3 class="vbg-heading-16">Where the run spent its time</h3>
+        </div>
+        <div class="vbg-chart-viewport" tabindex="0">
+          <svg class="vbg-custom-svg" id="timeline-svg" viewBox="0 0 1000 150" role="img" aria-labelledby="timeline-desc">
+            <desc id="timeline-desc">Timeline of the last run. Stream a run to fill it.</desc>
+          </svg>
+        </div>
+        <figcaption class="vbg-caption" id="timeline-caption">Each bar runs from the event that handed a node control to that node's own update. Ticks mark token events. Times are when events reached this browser, so they include network time.</figcaption>
+      </figure>
+      <div class="vbg-custom-group">
+        <h3 class="vbg-heading-16">Events of the last run</h3>
+        <div class="vbg-table-wrap">
+          <table class="vbg-custom-ledger">
+            <caption class="vbg-visually-hidden">Events of the last run, in the order they reached this browser</caption>
+            <thead>
+              <tr>
+                <th scope="col" class="vbg-numeric">Arrived</th>
+                <th scope="col">Event</th>
+                <th scope="col">Node</th>
+                <th scope="col">What it carried</th>
+              </tr>
+            </thead>
+            <tbody id="step-rows">
+              <tr><td colspan="4">Stream a run to record its events.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="memory-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="memory-title">A follow-up on the same thread sees the earlier turn, as long as it reaches the same instance</h2>
+        <p>The graph is compiled with <code class="vbg-mono">InMemorySaver</code>, which keeps each thread's messages in the memory of the instance that ran it. Send the <code class="vbg-mono">thread_id</code> back and LangGraph loads those messages before calling the model. Fluid compute usually sends the next request to the same warm instance, so this often works. A cold start, a redeploy, or a request that lands on another instance starts from an empty thread.</p>
+      </div>
+      <form class="vbg-custom-controls" id="follow-form">
+        <div class="vbg-custom-grow">
+          <div class="vbg-field">
+            <label class="vbg-label" for="follow-message">Follow-up</label>
+            <input id="follow-message" value="Now multiply that by 3" maxlength="200" autocomplete="off" required>
+          </div>
+        </div>
+        <button class="vbg-button" type="submit" id="follow-button" disabled>Send on this thread</button>
+      </form>
+      <p class="vbg-helper" id="follow-thread">Stream a run above to start a thread. The follow-up replays in the graph above too.</p>
+      <p class="vbg-heading-20" id="memory-summary" role="status">No follow-up sent yet.</p>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Turns on the current thread and the instance that answered each one</caption>
+          <thead>
+            <tr>
+              <th scope="col">Turn</th>
+              <th scope="col">Message</th>
+              <th scope="col">Instance</th>
+              <th scope="col" class="vbg-numeric">Messages already stored</th>
+              <th scope="col">Answer</th>
+            </tr>
+          </thead>
+          <tbody id="turn-rows">
+            <tr><td colspan="5">No turns yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="invoke-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="invoke-title">Without streaming, the whole run arrives as one response</h2>
+        <p><code class="vbg-mono">POST /invoke</code> runs the same graph to <code class="vbg-mono">END</code> and returns the answer with every message in the thread. Nothing reaches the browser until the last model call has finished.</p>
+      </div>
+      <div class="vbg-custom-controls">
+        <button class="vbg-button" type="button" id="invoke-button">Send the message to POST /invoke</button>
+      </div>
+      <p class="vbg-helper">Sends the message from the box above, on a new thread.</p>
+      <div class="vbg-custom-group">
+        <p class="vbg-heading-20" id="invoke-summary" role="status">Not sent yet.</p>
+        <p class="vbg-caption" id="invoke-compare">Stream a run first to compare when the first evidence arrives.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Messages returned by POST /invoke</caption>
+          <thead>
+            <tr>
+              <th scope="col">Message</th>
+              <th scope="col">Type</th>
+              <th scope="col">Content</th>
+            </tr>
+          </thead>
+          <tbody id="invoke-rows">
+            <tr><td colspan="3">Send the message to see the full message list.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <details class="vbg-custom-disclosure">
+        <summary>Raw JSON response</summary>
+        <pre class="vbg-custom-output vbg-mono" id="invoke-raw">Nothing sent yet.</pre>
+      </details>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="how-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="how-title">What Vercel did with this folder</h2>
+        <p>The project contains <code class="vbg-mono">main.py</code>, <code class="vbg-mono">index.html</code>, <code class="vbg-mono">pyproject.toml</code> and <code class="vbg-mono">uv.lock</code>. There is no <code class="vbg-mono">vercel.json</code> and no stored secret; every decision below came from those files or from the platform.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table class="vbg-custom-ledger">
+          <caption class="vbg-visually-hidden">Build and runtime decisions and where each one came from</caption>
+          <thead>
+            <tr><th scope="col">Decision</th><th scope="col">Comes from</th><th scope="col">Result</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Framework</th><td class="vbg-custom-nowrap"><code class="vbg-mono">app</code> in <code class="vbg-mono">main.py</code></td><td>FastAPI, deployed as one function that serves this page, <code class="vbg-mono">/invoke</code> and <code class="vbg-mono">/stream</code></td></tr>
+            <tr><th scope="row">Dependencies</th><td class="vbg-custom-nowrap"><code class="vbg-mono">uv.lock</code></td><td><code class="vbg-mono">langgraph</code>, <code class="vbg-mono">langchain-openai</code> and the <code class="vbg-mono">vercel</code> SDK, installed with uv; the local-only uvicorn is left out</td></tr>
+            <tr><th scope="row">Compiled graph</th><td class="vbg-custom-nowrap">Module globals in <code class="vbg-mono">main.py</code></td><td>Compiled once per instance at cold start, then reused by every request that instance serves</td></tr>
+            <tr><th scope="row">Model access</th><td class="vbg-custom-nowrap"><code class="vbg-mono">ChatOpenAI(base_url=...)</code></td><td>AI Gateway's OpenAI-compatible endpoint, <code class="vbg-mono">https://ai-gateway.vercel.sh/v1</code>, for <span class="vbg-mono" id="build-model">…</span></td></tr>
+            <tr><th scope="row">Credential</th><td class="vbg-custom-nowrap"><code class="vbg-mono">x-vercel-oidc-token</code> header</td><td>The Python runtime adds the deployment's OIDC token to every request, and <code class="vbg-mono">vercel.oidc</code> reads it before each model call. In use now: <span id="build-credential">…</span></td></tr>
+            <tr><th scope="row">Streaming</th><td class="vbg-custom-nowrap"><code class="vbg-mono">EventSourceResponse</code></td><td>Each event is sent as soon as it is yielded; Python streaming is on by default</td></tr>
+            <tr><th scope="row">Thread memory</th><td class="vbg-custom-nowrap"><code class="vbg-mono">InMemorySaver()</code></td><td>Held in the instance's memory; lost on a cold start or redeploy, and not shared between instances</td></tr>
+            <tr><th scope="row">Duration</th><td class="vbg-custom-nowrap">Project defaults</td><td>Fluid compute, 300 second default, enough for a short agent loop</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3 class="vbg-heading-20">The path of your last run</h3>
+      <div class="vbg-span-12">
+      <ol class="vbg-custom-route">
+        <li>
+          <p class="vbg-label">This browser</p>
+          <p>Sends <span class="vbg-mono" id="route-request">POST /stream</span> and reads each event as it arrives.</p>
+        </li>
+        <li>
+          <p class="vbg-label">Vercel network</p>
+          <p>Received at <span class="vbg-mono" id="route-edge">…</span>, the closest edge location, and routed to the function.</p>
+        </li>
+        <li>
+          <p class="vbg-label">Vercel Function</p>
+          <p>FastAPI in <span class="vbg-mono" id="route-region">…</span>, instance <span class="vbg-mono" id="route-instance">…</span>, runs the graph and keeps the thread in memory.</p>
+        </li>
+        <li>
+          <p class="vbg-label">AI Gateway</p>
+          <p><span id="route-calls">Receives one request per agent step</span> for <span class="vbg-custom-nowrap"><span class="vbg-mono" id="route-model">…</span></span>, authenticated with <span id="route-credential">the deployment's credential</span>.</p>
+        </li>
+      </ol>
+      </div>
+      <p class="vbg-caption" id="route-caption">Filled from <code class="vbg-mono">GET /</code> until you stream a run, then from the <code class="vbg-mono">x-vercel-id</code> response header and the events of that run.</p>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="audit-title">
+      <h2 class="vbg-heading-24" id="audit-title">Endpoints, events and limits</h2>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Endpoints served by this app</caption>
+          <thead>
+            <tr><th scope="col">Endpoint</th><th scope="col">What it returns</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row" class="vbg-custom-nowrap"><code class="vbg-mono">GET /</code></th><td>This page for browsers; for everything else, JSON with the model, credential source, region and instance</td></tr>
+            <tr><th scope="row" class="vbg-custom-nowrap"><code class="vbg-mono">POST /invoke</code></th><td>The answer and the thread's full message list, once the graph reaches <code class="vbg-mono">END</code></td></tr>
+            <tr><th scope="row" class="vbg-custom-nowrap"><code class="vbg-mono">POST /stream</code></th><td>The same run as Server-Sent Events, in the order listed below</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-table-wrap">
+        <table class="vbg-custom-ledger">
+          <caption class="vbg-visually-hidden">Server-Sent Events sent by POST /stream</caption>
+          <thead>
+            <tr><th scope="col">Event</th><th scope="col">Sent when</th><th scope="col">Data</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><code class="vbg-mono">thread</code></th><td>Before the graph starts</td><td><code class="vbg-mono">thread_id</code>, <code class="vbg-mono">instance_id</code>, <code class="vbg-mono">prior_messages</code></td></tr>
+            <tr><th scope="row"><code class="vbg-mono">token</code></th><td>The model writes a piece of text</td><td><code class="vbg-mono">node</code>, <code class="vbg-mono">text</code></td></tr>
+            <tr><th scope="row"><code class="vbg-mono">update</code></th><td>A node finishes</td><td><code class="vbg-mono">node</code> and the <code class="vbg-mono">messages</code> it added</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">error</code></th><td>Something fails after the 200 status has been sent</td><td><code class="vbg-mono">error</code></td></tr>
+            <tr><th scope="row"><code class="vbg-mono">done</code></th><td>The graph reached <code class="vbg-mono">END</code></td><td>Empty</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p>A run can last up to 300 seconds by default; longer agent loops need a higher <code class="vbg-mono">maxDuration</code>. <code class="vbg-mono">InMemorySaver</code> never evicts threads, so memory grows with use; durable conversations need a Postgres checkpointer. The model has to support tool calls on the Chat Completions API. Credentials are checked before the stream starts, so a missing one returns a 500 with instructions instead of a broken stream; locally that means setting <code class="vbg-mono">AI_GATEWAY_API_KEY</code> or pulling <code class="vbg-mono">VERCEL_OIDC_TOKEN</code>.</p>
+        <ul class="vbg-sources">
+          <li><a href="https://vercel.com/docs/ai-gateway/ecosystem/framework-integrations/langchain">LangChain with AI Gateway</a></li>
+          <li><a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/oidc">AI Gateway OIDC authentication</a></li>
+          <li><a href="https://vercel.com/docs/frameworks/backend/fastapi">FastAPI on Vercel</a></li>
+          <li><a href="https://vercel.com/docs/fluid-compute">Fluid compute</a></li>
+          <li><a href="https://docs.langchain.com/oss/python/langgraph/streaming">LangGraph streaming</a></li>
+          <li><a href="https://docs.langchain.com/oss/python/langgraph/persistence">LangGraph persistence</a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vbg-footer">
+    <span class="vbg-logo" role="img" aria-label="Vercel"></span>
+    <span>Source: <code class="vbg-mono">python-on-vercel-demos/06-langgraph</code></span>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SVG = "http://www.w3.org/2000/svg";
+
+// The x-vercel-id header reads "<edge>::<function region>::<id>" for function responses.
+function parseVercelId(value) {
+  if (!value) return { edge: "local", region: null };
+  const parts = value.split("::");
+  return { edge: parts[0], region: parts.length > 2 ? parts[1] : null };
+}
+
+async function callJSON(path, init = {}) {
+  const started = performance.now();
+  const res = await fetch(path, { ...init, headers: { Accept: "application/json", ...(init.headers || {}) } });
+  const text = await res.text();
+  const ms = performance.now() - started;
+  let body;
+  try { body = JSON.parse(text); } catch { body = text; }
+  return { status: res.status, ms, body, text, route: parseVercelId(res.headers.get("x-vercel-id")) };
+}
+
+function errorText(body) {
+  if (body && typeof body === "object") return body.error || JSON.stringify(body.detail ?? body);
+  return String(body || "No details.");
+}
+
+// Fill an element from parts: plain strings, or { mono } for identifiers.
+function setRich(el, parts) {
+  el.replaceChildren();
+  for (const part of parts) {
+    if (typeof part === "string") { el.append(part); continue; }
+    const code = document.createElement("span");
+    code.className = "vbg-mono";
+    code.textContent = part.mono;
+    el.append(code);
+  }
+}
+
+function cell(row, content, { numeric = false, mono = false, header = false, nowrap = false } = {}) {
+  const el = document.createElement(header ? "th" : "td");
+  if (header) el.scope = "row";
+  if (numeric) el.className = "vbg-numeric";
+  if (nowrap) el.classList.add("vbg-custom-nowrap");
+  if (Array.isArray(content)) setRich(el, content);
+  else if (mono) setRich(el, [{ mono: content }]);
+  else el.textContent = content;
+  row.append(el);
+}
+
+function svgEl(name, attrs, text) {
+  const el = document.createElementNS(SVG, name);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+const seconds = (s) => `${s.toFixed(2)} s`;
+const duration = (s) => (s < 1 ? `${Math.round(s * 1000)} ms` : seconds(s));
+const times = (n) => (n === 1 ? "once" : `${n} times`);
+const shortId = (id) => (id && id.length > 13 ? `${id.slice(0, 8)}…` : id);
+const toolCall = (c) => `${c.name}(${Object.entries(c.args || {}).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ")})`;
+const credentialName = { oidc: "the OIDC token", api_key: "AI_GATEWAY_API_KEY", none: "no credential" };
+
+let info = null;     // body of GET /
+let run = null;      // the stream run on screen
+let lastRun = null;  // the last finished stream run, for the /invoke comparison
+let thread = null;   // { id, turns } for the follow-up
+let busy = false;
+
+function setBusy(value) {
+  busy = value;
+  $("run-button").disabled = value;
+  $("invoke-button").disabled = value;
+  $("follow-button").disabled = value || !thread;
+}
+
+// Opening proof: GET / as JSON
+async function loadOpening() {
+  try {
+    const r = await callJSON("/");
+    if (r.status !== 200 || typeof r.body !== "object") throw new Error(`GET / answered ${r.status}`);
+    info = r.body;
+    const [provider, name] = info.model.includes("/") ? info.model.split("/", 2) : [null, info.model];
+    $("stat-model").textContent = name;
+    setRich($("stat-provider"), provider ? ["From ", { mono: provider }, ", through AI Gateway"] : ["Through AI Gateway"]);
+    const credential = {
+      oidc: ["OIDC token", "Issued to the deployment and read per request; no key is stored"],
+      api_key: ["API key", "AI_GATEWAY_API_KEY is set, so it is used instead of OIDC"],
+      none: ["None found", "Runs fail with a clear error until a key or OIDC token is available"],
+    }[info.credential] || [info.credential, ""];
+    $("stat-credential").textContent = credential[0];
+    $("stat-credential-detail").textContent = credential[1];
+    $("stat-region").textContent = info.region;
+    $("stat-edge").textContent = r.route.edge === "local" ? "Not behind the Vercel network" : `Reached through edge location ${r.route.edge}`;
+    $("stat-instance").textContent = info.instance_id;
+    $("stat-uptime").textContent = `Up for ${Math.round(info.instance_uptime_s)} seconds; holds the threads`;
+    $("build-model").textContent = info.model;
+    $("build-credential").textContent = credentialName[info.credential] || info.credential;
+    $("route-request").textContent = "GET /";
+    $("route-edge").textContent = r.route.edge;
+    $("route-region").textContent = info.region;
+    $("route-instance").textContent = info.instance_id;
+    $("route-model").textContent = info.model;
+    $("route-credential").textContent = credentialName[info.credential] || info.credential;
+    $("opening-status").textContent = `Fetched from GET / in ${Math.round(r.ms)} ms when this page loaded.`;
+  } catch (error) {
+    $("opening-status").textContent = `Could not reach the function: ${error.message}`;
+  }
+}
+
+// Server-Sent Events over a POST response: split on blank lines, read event and data fields.
+async function* readSSE(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true }).replace(/\r/g, "");
+    let end;
+    while ((end = buffer.indexOf("\n\n")) >= 0) {
+      const block = buffer.slice(0, end);
+      buffer = buffer.slice(end + 2);
+      let event = "message";
+      const data = [];
+      for (const line of block.split("\n")) {
+        if (!line || line.startsWith(":")) continue; // ": ping" keep-alive comments
+        const colon = line.indexOf(":");
+        const field = colon < 0 ? line : line.slice(0, colon);
+        const val = colon < 0 ? "" : line.slice(colon + 1).replace(/^ /, "");
+        if (field === "event") event = val;
+        else if (field === "data") data.push(val);
+      }
+      if (data.length) yield { event, data: JSON.parse(data.join("\n")) };
+    }
+  }
+}
+
+// One run's state. Node state is inferred from graph topology: the agent's update
+// hands control to tools (tool calls) or routes to END; the tools' update hands it back.
+function newRun(message) {
+  return {
+    message, threadId: null, instance: null, prior: null, route: null,
+    agent: { runs: 0, state: "waiting" }, tools: { runs: 0, state: "waiting" }, end: "waiting",
+    edges: { start: 0, call: 0, result: 0, finish: 0 },
+    spans: [], tokens: [], steps: [], draft: "", answer: null,
+    firstUpdate: null, lastAt: 0, done: false, error: null, httpStatus: null,
+  };
+}
+
+function runningNode(r) {
+  return ["agent", "tools"].find((n) => r[n].state === "running") || null;
+}
+
+function closeSpan(r, t, state = "done") {
+  const span = r.spans.findLast((s) => s.end === null);
+  if (span) { span.end = t; span.state = state; }
+}
+
+function addStep(r, t, event, node, parts) {
+  r.steps.push({ t, event, node, parts });
+}
+
+function handleEvent(r, { event, data }, t) {
+  r.lastAt = t;
+  if (event === "thread") {
+    r.threadId = data.thread_id;
+    r.instance = data.instance_id;
+    r.prior = data.prior_messages;
+    r.edges.start = 1;
+    r.agent.state = "running";
+    r.spans.push({ node: "agent", start: t, end: null });
+    addStep(r, t, "thread", null, ["Thread ", { mono: shortId(r.threadId) }, " on instance ", { mono: r.instance }, `, ${r.prior} ${r.prior === 1 ? "message" : "messages"} already stored`]);
+    status("agent is waiting on the model.");
+  } else if (event === "token") {
+    r.tokens.push(t);
+    r.draft += data.text;
+    const last = r.steps[r.steps.length - 1];
+    if (last && last.event === "token" && last.node === data.node) {
+      last.count += 1; last.until = t;
+    } else {
+      r.steps.push({ t, event: "token", node: data.node, count: 1, until: t });
+    }
+    showAnswer(r.draft);
+  } else if (event === "update") {
+    r.firstUpdate ??= t;
+    const messages = data.messages || [];
+    const last = messages[messages.length - 1] || {};
+    if (data.node === "agent") {
+      r.agent.runs += 1;
+      r.agent.state = "done";
+      closeSpan(r, t);
+      if (last.tool_calls && last.tool_calls.length) {
+        r.edges.call += 1;
+        r.tools.state = "running";
+        r.spans.push({ node: "tools", start: t, end: null });
+        const parts = ["Asked for "];
+        last.tool_calls.forEach((c, i) => parts.push(...(i ? [", "] : []), { mono: toolCall(c) }));
+        addStep(r, t, "update", "agent", parts);
+        status(`tools is running ${last.tool_calls.map((c) => c.name).join(", ")}.`);
+      } else {
+        r.edges.finish += 1;
+        r.answer = last.content || "";
+        showAnswer(r.answer);
+        addStep(r, t, "update", "agent", [`Answered: ${r.answer || "(no text)"}`]);
+        status("agent answered without a tool call, so the graph routes to END.");
+      }
+    } else if (data.node === "tools") {
+      r.tools.runs += 1;
+      r.tools.state = "done";
+      closeSpan(r, t);
+      r.edges.result += 1;
+      r.agent.state = "running";
+      r.spans.push({ node: "agent", start: t, end: null });
+      r.draft = "";
+      const parts = ["Returned "];
+      messages.forEach((m, i) => parts.push(...(i ? [", "] : []), { mono: m.content }));
+      addStep(r, t, "update", "tools", parts);
+      status("tools returned its result; agent is calling the model again.");
+    } else {
+      addStep(r, t, "update", data.node, [`${messages.length} messages`]);
+    }
+  } else if (event === "error") {
+    r.error = data.error;
+    const node = runningNode(r);
+    if (node) r[node].state = "failed";
+    closeSpan(r, t, "failed");
+    addStep(r, t, "error", node, [data.error]);
+  } else if (event === "done") {
+    r.done = true;
+    r.end = "reached";
+    addStep(r, t, "done", null, ["The graph reached END"]);
+  }
+}
+
+function status(text) { $("run-status").textContent = text; }
+
+function showAnswer(text) {
+  $("answer").textContent = text;
+  $("answer").hidden = !text;
+  $("answer-empty").hidden = Boolean(text);
+}
+
+// Graph diagram. Built once per width so the drawing stays at 1:1 scale; state changes only flip attributes.
+const diagram = { nodes: {}, edges: {}, end: null, endLabel: null };
+
+function buildDiagram() {
+  const svg = $("graph-svg");
+  const W = Math.round(svg.getBoundingClientRect().width) || 560;
+  svg.querySelectorAll(":scope > :not(desc)").forEach((el) => el.remove());
+  const boxH = 60, top = 46, H = 184;
+  const boxW = Math.max(96, Math.min(136, Math.floor((W - 112) / 2)));
+  const gap = Math.max(96, Math.min(240, W - 2 * boxW - 4));
+  const ax = 2, tx = ax + boxW + gap, cx = ax + boxW / 2;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
+  const edge = (key, x1, y1, x2, y2) => {
+    const g = svgEl("g", { class: "vbg-viz-edge" });
+    g.append(svgEl("line", { x1, y1, x2, y2 }));
+    const a = Math.atan2(y2 - y1, x2 - x1), s = 8;
+    const p = (d) => `${(x2 - s * Math.cos(a + d)).toFixed(1)},${(y2 - s * Math.sin(a + d)).toFixed(1)}`;
+    g.append(svgEl("polygon", { points: `${x2},${y2} ${p(0.42)} ${p(-0.42)}` }));
+    svg.append(g);
+    diagram.edges[key] = g;
+  };
+  const node = (key, x) => {
+    const g = svgEl("g", { class: "vbg-viz-node", "data-state": "waiting" });
+    g.append(svgEl("rect", { x, y: top, width: boxW, height: boxH, rx: 6 }));
+    svg.append(g);
+    svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: x + boxW / 2, y: top + 26, "text-anchor": "middle", fill: "currentColor" }, key));
+    const label = svgEl("text", { class: "vbg-chart-value", x: x + boxW / 2, y: top + 45, "text-anchor": "middle", fill: "currentColor" }, "waiting");
+    svg.append(label);
+    diagram.nodes[key] = { g, label };
+  };
+
+  svg.append(svgEl("circle", { class: "vbg-viz-terminal", cx, cy: 12, r: 6 }));
+  svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: cx + 14, y: 16, fill: "currentColor" }, "START"));
+  edge("start", cx, 20, cx, top - 3);
+  node("agent", ax);
+  node("tools", tx);
+  edge("call", ax + boxW + 3, top + 18, tx - 4, top + 18);
+  edge("result", tx - 3, top + 42, ax + boxW + 4, top + 42);
+  svg.append(svgEl("text", { class: "vbg-chart-annotation", x: ax + boxW + gap / 2, y: top + 11, "text-anchor": "middle", fill: "currentColor" }, "tool calls"));
+  svg.append(svgEl("text", { class: "vbg-chart-annotation", x: ax + boxW + gap / 2, y: top + 58, "text-anchor": "middle", fill: "currentColor" }, "result"));
+  edge("finish", cx, top + boxH + 3, cx, 152);
+  svg.append(svgEl("text", { class: "vbg-chart-annotation", x: cx + 10, y: top + boxH + 30, fill: "currentColor" }, "no tool calls"));
+  diagram.end = svgEl("circle", { class: "vbg-viz-terminal", cx, cy: 166, r: 7, "data-state": "waiting" });
+  svg.append(diagram.end);
+  diagram.endLabel = svgEl("text", { class: "vbg-chart-direct-label", x: cx + 16, y: 170, fill: "currentColor" }, "END");
+  svg.append(diagram.endLabel);
+  paintGraph();
+}
+
+function nodeLabel(n) {
+  if (n.state === "running") return n.runs ? "running again" : "running";
+  if (n.state === "failed") return "failed";
+  if (n.state === "done") return `ran ${times(n.runs)}`;
+  return "waiting";
+}
+
+function paintGraph() {
+  const r = run || newRun("");
+  for (const key of ["agent", "tools"]) {
+    diagram.nodes[key].g.setAttribute("data-state", r[key].state);
+    diagram.nodes[key].label.textContent = nodeLabel(r[key]);
+  }
+  for (const [key, count] of Object.entries(r.edges)) diagram.edges[key].toggleAttribute("data-taken", count > 0);
+  diagram.end.setAttribute("data-state", r.end);
+  diagram.endLabel.textContent = r.end === "reached" ? "END, reached" : "END";
+  $("graph-desc").textContent = run
+    ? `agent: ${nodeLabel(r.agent)}. tools: ${nodeLabel(r.tools)}. END ${r.end === "reached" ? "reached" : "not reached"}.`
+    : "Graph from START to agent. agent goes to tools when the model asks for a tool call, tools returns to agent, and agent goes to END when there are no tool calls. Nothing has run yet.";
+}
+
+// Timeline: one lane per node plus token ticks, on a shared time axis.
+function drawTimeline() {
+  const svg = $("timeline-svg");
+  const W = Math.round(svg.getBoundingClientRect().width) || 1000;
+  const H = 150, left = 64, right = W - 16;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.querySelectorAll(":scope > :not(desc)").forEach((el) => el.remove());
+  const r = run;
+  const span = Math.max(r ? r.lastAt : 0, 1) * 1.04;
+  const x = (s) => left + (s / span) * (right - left);
+  const lanes = { agent: 14, tools: 46 }, barH = 16;
+  for (const [name, y] of Object.entries(lanes)) {
+    svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: 0, y: y + 12, fill: "currentColor" }, name));
+  }
+  svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: 0, y: 92, fill: "currentColor" }, "tokens"));
+  const axisY = 112;
+  svg.append(svgEl("line", { class: "vbg-chart-axis", x1: left, x2: right, y1: axisY, y2: axisY, stroke: "currentColor" }));
+  const step = [0.25, 0.5, 1, 2, 5, 10, 20, 30, 60].find((s) => span / s <= Math.max(3, Math.floor((right - left) / 90))) || 60;
+  for (let s = 0; s <= span + 1e-9; s += step) {
+    svg.append(svgEl("line", { class: "vbg-chart-gridline", x1: x(s), x2: x(s), y1: axisY, y2: axisY + 6, stroke: "currentColor" }));
+    svg.append(svgEl("text", { class: "vbg-chart-value", x: x(s), y: axisY + 26, "text-anchor": s === 0 ? "start" : "middle", fill: "currentColor" }, `${Number(s.toFixed(2))} s`));
+  }
+  if (!r) return;
+  for (const s of r.spans) {
+    // Consecutive spans touch, so inset each one slightly to keep separate runs visible.
+    const x0 = x(s.start), w = x(s.end ?? r.lastAt) - x0;
+    const inset = w > 8 ? 2 : 0;
+    const failed = s.state === "failed";
+    svg.append(svgEl("rect", {
+      class: failed ? "vbg-viz-failed" : "vbg-series-fill vbg-series-1",
+      x: x0 + inset, y: lanes[s.node], width: Math.max(2, w - 2 * inset), height: barH, rx: 2, fill: "currentColor",
+    }));
+    if (failed) {
+      const after = x0 + w + 6 < right - 40;
+      svg.append(svgEl("text", { class: "vbg-chart-annotation", x: after ? x0 + w + 6 : x0 + w - 6, y: lanes[s.node] + 12, "text-anchor": after ? "start" : "end", fill: "currentColor" }, "failed"));
+    }
+  }
+  for (const t of r.tokens) {
+    svg.append(svgEl("line", { class: "vbg-series-stroke vbg-series-1", x1: x(t), x2: x(t), y1: 80, y2: 96, stroke: "currentColor", "stroke-width": 1.5 }));
+  }
+}
+
+function describeTimeline() {
+  const r = run;
+  const total = (node) => r.spans.filter((s) => s.node === node && s.end !== null).reduce((a, s) => a + s.end - s.start, 0);
+  const parts = [];
+  const agentTime = total("agent"), toolsTime = total("tools");
+  if (r.agent.runs) parts.push(`The agent node, which waits on the model, held control for ${agentTime.toFixed(2)} of ${r.lastAt.toFixed(2)} seconds across ${r.agent.runs} model ${r.agent.runs === 1 ? "call" : "calls"}.`);
+  if (r.tools.runs) parts.push(`The tools node took ${Math.round(toolsTime * 1000)} ms.`);
+  if (r.tokens.length > 1) parts.push(`${r.tokens.length} token events arrived spread over ${(r.tokens[r.tokens.length - 1] - r.tokens[0]).toFixed(2)} seconds rather than all at once.`);
+  else if (r.tokens.length === 1) parts.push("One token event arrived.");
+  if (!parts.length) parts.push("No node finished in this run.");
+  parts.push("Times include network time to this browser.");
+  $("timeline-caption").textContent = parts.join(" ");
+  $("timeline-desc").textContent = parts.join(" ");
+}
+
+function drawSteps() {
+  const body = $("step-rows");
+  body.replaceChildren();
+  for (const s of run.steps) {
+    const row = document.createElement("tr");
+    cell(row, seconds(s.t), { numeric: true });
+    const sse = !/^HTTP|^closed$/.test(s.event);
+    cell(row, s.event === "token" && s.count > 1 ? [{ mono: "token" }, ` × ${s.count}`] : s.event, { mono: sse && (s.event !== "token" || s.count === 1), nowrap: true });
+    cell(row, s.node || "", { mono: Boolean(s.node), nowrap: true });
+    cell(row, s.event === "token"
+      ? [s.count === 1 ? "One piece of text" : `${s.count} pieces of text until ${seconds(s.until)}`, ", shown in the answer"]
+      : s.parts);
+    body.append(row);
+  }
+}
+
+function paintRun() {
+  paintGraph();
+  drawTimeline();
+  drawSteps();
+}
+
+async function runStream(message, threadId) {
+  run = newRun(message);
+  showAnswer("");
+  paintRun();
+  status("Sending POST /stream.");
+  const started = performance.now();
+  const now = () => (performance.now() - started) / 1000;
+  const r = run;
+  try {
+    const res = await fetch("/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify(threadId ? { message, thread_id: threadId } : { message }),
+    });
+    r.route = parseVercelId(res.headers.get("x-vercel-id"));
+    if (!res.ok) {
+      const text = await res.text();
+      let body = text;
+      try { body = JSON.parse(text); } catch {}
+      r.httpStatus = res.status;
+      r.error = errorText(body);
+      r.lastAt = now();
+      addStep(r, r.lastAt, `HTTP ${res.status}`, null, [r.error]);
+      status(`POST /stream answered ${res.status} before streaming started, so no event was sent: ${r.error}`);
+      paintRun();
+      $("timeline-caption").textContent = "Nothing ran: the function rejected the request before the graph started.";
+      return r;
+    }
+    for await (const ev of readSSE(res)) {
+      handleEvent(r, ev, now());
+      paintRun();
+    }
+  } catch (error) {
+    r.error = r.error || error.message;
+    r.lastAt = now();
+    const node = runningNode(r);
+    if (node) r[node].state = "failed";
+    closeSpan(r, r.lastAt, "failed");
+    addStep(r, r.lastAt, "error", node, [`The connection failed: ${error.message}`]);
+  }
+  if (!r.done && !r.error) {
+    const node = runningNode(r);
+    if (node) r[node].state = "failed";
+    closeSpan(r, r.lastAt, "failed");
+    r.error = "The stream closed before the done event.";
+    addStep(r, r.lastAt, "closed", node, [r.error]);
+  }
+  paintRun();
+  describeTimeline();
+  if (r.done) {
+    status(`Done in ${duration(r.lastAt)}: agent ran ${times(r.agent.runs)}, tools ran ${times(r.tools.runs)}.`);
+    lastRun = r;
+  } else {
+    status(`The run failed after ${duration(r.lastAt)}: ${r.error}`);
+  }
+  if (r.instance) {
+    $("route-request").textContent = "POST /stream";
+    $("route-edge").textContent = r.route.edge;
+    $("route-region").textContent = r.route.region || (info ? info.region : "local");
+    $("route-instance").textContent = r.instance;
+    const calls = r.agent.runs + (r.agent.state === "failed" ? 1 : 0);
+    $("route-calls").textContent = `Received ${calls} model ${calls === 1 ? "request" : "requests"}, one per agent step,`;
+    $("route-caption").textContent = `From the x-vercel-id header and the events of the run that started ${new Date().toLocaleTimeString()}.`;
+  }
+  return r;
+}
+
+// Thread memory
+function drawTurns() {
+  const body = $("turn-rows");
+  body.replaceChildren();
+  if (!thread) {
+    body.innerHTML = '<tr><td colspan="5">No turns yet.</td></tr>';
+    return;
+  }
+  thread.turns.forEach((t, i) => {
+    const row = document.createElement("tr");
+    cell(row, String(i + 1), { header: true });
+    cell(row, t.message);
+    cell(row, t.instance || "none", { mono: Boolean(t.instance) });
+    cell(row, t.prior === null ? "n/a" : String(t.prior), { numeric: true });
+    cell(row, t.done ? (t.answer || "(no text)") : `Failed: ${t.error}`);
+    body.append(row);
+  });
+}
+
+function turnOf(r) {
+  return { message: r.message, instance: r.instance, prior: r.prior, answer: r.answer, done: r.done, error: r.error };
+}
+
+function describeMemory() {
+  const turns = thread.turns;
+  const latest = turns[turns.length - 1];
+  const previous = turns[turns.length - 2];
+  const summary = $("memory-summary");
+  const stored = (n) => `${n} ${n === 1 ? "message" : "messages"}`;
+  if (!previous) {
+    setRich(summary, ["Thread ", { mono: shortId(thread.id) }, " is stored on instance ", { mono: latest.instance }, ". Send the follow-up to see whether it is still there."]);
+  } else if (!latest.instance) {
+    summary.textContent = "The follow-up failed before the graph started. The reason is in the last row below.";
+  } else if (latest.prior > 0) {
+    const everyTurn = turns.every((t) => t.instance === latest.instance);
+    setRich(summary, ["Instance ", { mono: latest.instance }, ` answered ${everyTurn ? "every turn" : "this follow-up"} and already held ${stored(latest.prior)} for this thread, so the model saw the earlier turns it had stored.`]);
+  } else if (latest.instance !== previous.instance) {
+    setRich(summary, ["The follow-up reached instance ", { mono: latest.instance }, " instead of ", { mono: previous.instance }, ". It held no messages for this thread, so the model started without the earlier turns."]);
+  } else {
+    setRich(summary, ["Instance ", { mono: latest.instance }, " answered but held no messages for this thread, so the model started without the earlier turns."]);
+  }
+}
+
+function startThread(r) {
+  if (r.done && r.threadId) {
+    thread = { id: r.threadId, turns: [turnOf(r)] };
+    setRich($("follow-thread"), ["Continues thread ", { mono: r.threadId }, ". The follow-up replays in the graph above too."]);
+    describeMemory();
+  } else {
+    thread = null;
+    $("follow-thread").textContent = "The last run did not finish, so there is no thread to continue. Stream a run above to start one.";
+    $("memory-summary").textContent = "No follow-up sent yet.";
+  }
+  drawTurns();
+}
+
+$("run-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const message = $("message").value.trim();
+  if (!message || busy) return;
+  setBusy(true);
+  try { startThread(await runStream(message, null)); }
+  finally { setBusy(false); }
+});
+
+$("follow-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const message = $("follow-message").value.trim();
+  if (!message || busy || !thread) return;
+  setBusy(true);
+  $("memory-summary").textContent = "Sending the follow-up on this thread.";
+  try {
+    const r = await runStream(message, thread.id);
+    thread.turns.push(turnOf(r));
+    drawTurns();
+    describeMemory();
+  } finally { setBusy(false); }
+});
+
+// Non-streaming comparison
+function drawInvoke(messages) {
+  const body = $("invoke-rows");
+  body.replaceChildren();
+  messages.forEach((m, i) => {
+    const row = document.createElement("tr");
+    cell(row, String(i + 1), { header: true });
+    cell(row, m.type, { mono: true });
+    if (m.tool_calls && m.tool_calls.length) {
+      const parts = ["Tool call "];
+      m.tool_calls.forEach((c, j) => parts.push(...(j ? [", "] : []), { mono: toolCall(c) }));
+      cell(row, parts);
+    } else {
+      cell(row, m.type === "tool" ? [{ mono: m.content }] : m.content || "(no text)");
+    }
+    body.append(row);
+  });
+}
+
+$("invoke-button").addEventListener("click", async () => {
+  const message = $("message").value.trim();
+  if (!message || busy) return;
+  setBusy(true);
+  const summary = $("invoke-summary");
+  summary.textContent = "Waiting for POST /invoke. Nothing comes back until the graph reaches END.";
+  try {
+    const r = await callJSON("/invoke", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }) });
+    $("invoke-raw").textContent = `POST /invoke\n${r.status} in ${Math.round(r.ms)} ms\n\n${typeof r.body === "string" ? r.body : JSON.stringify(r.body, null, 2)}`;
+    if (r.status === 200) {
+      const n = r.body.messages.length;
+      setRich(summary, [`${r.status} after ${seconds(r.ms / 1000)}, all at once: ${n} messages from instance `, { mono: r.body.instance_id }, "."]);
+      drawInvoke(r.body.messages);
+      $("invoke-compare").textContent = lastRun
+        ? `For comparison, the last stream showed its first node update after ${seconds(lastRun.firstUpdate)}${lastRun.tokens.length ? ` and its first token after ${seconds(lastRun.tokens[0])}` : ""}, and finished after ${seconds(lastRun.lastAt)}.`
+        : "Stream a run first to compare when the first evidence arrives.";
+    } else {
+      summary.textContent = `POST /invoke answered ${r.status} after ${duration(r.ms / 1000)}, with no messages.`;
+      $("invoke-compare").textContent = errorText(r.body);
+      $("invoke-rows").innerHTML = '<tr><td colspan="3">No messages: the request failed.</td></tr>';
+    }
+  } catch (error) {
+    summary.textContent = `POST /invoke failed: ${error.message}`;
+  } finally {
+    setBusy(false);
+  }
+});
+
+// Redraw the drawings at their real width so SVG text stays at its set size.
+let lastWidths = "";
+new ResizeObserver(() => {
+  const widths = [$("graph-svg"), $("timeline-svg")].map((el) => Math.round(el.getBoundingClientRect().width)).join(",");
+  if (widths === lastWidths) return;
+  lastWidths = widths;
+  buildDiagram();
+  drawTimeline();
+}).observe(document.querySelector("main"));
+
+buildDiagram();
+drawTimeline();
+loadOpening();
+</script>
+</body>
+</html>
