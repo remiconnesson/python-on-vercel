@@ -1,31 +1,473 @@
 {% load static %}<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Django on Vercel</title>
-  {# Resolves to /static/mysite/style.css, served by Vercel's CDN (not by Django) #}
-  <link rel="stylesheet" href="{% static 'mysite/style.css' %}">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Django on Vercel</title>
+<meta name="description" content="A Django project deployed to Vercel with no configuration, explained and tested live.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" referrerpolicy="no-referrer">
+<link href="https://vercel.com/geist/vercel-brand.css" rel="stylesheet">
+{# Resolves to /static/mysite/style.css. On Vercel the CDN serves it; Django never sees the request. #}
+<link href="{% static 'mysite/style.css' %}" rel="stylesheet">
 </head>
-<body>
-  <main>
-    <h1>Django on Vercel</h1>
-    <p class="badge">If this text is on a dark card, the CSS loaded from the CDN.</p>
+<body class="vbg-report">
+<div class="vbg-shell">
+  <a class="vbg-skip-link" href="#main">Skip to content</a>
+  <header class="vbg-header">
+    <div class="vbg-masthead">
+      <span class="vbg-identity"><span class="vbg-wordmark" role="img" aria-label="Vercel"></span></span>
+      <div class="vbg-document-meta">
+        <span class="vbg-context">Python on Vercel, demo 2 of 8</span>
+        <span class="vbg-state">Live deployment</span>
+      </div>
+    </div>
+  </header>
 
-    <h2>Endpoints</h2>
-    <ul>
-      <li><a href="/">/</a>: this page, a Django template view</li>
-      <li><a href="/api/info">/api/info</a>: a JSON view</li>
-      <li><a href="{% static 'mysite/style.css' %}">{% static 'mysite/style.css' %}</a>: a static file collected at build time</li>
-      <li><a href="/admin/">/admin/</a>: Django admin, styled by its own collected static files (logging in needs <code>DATABASE_URL</code>)</li>
-    </ul>
+  <main id="main">
+    <section class="vbg-opening" aria-labelledby="title">
+      <div class="vbg-opening-claim">
+        <h1 class="vbg-title" id="title">Django runs on Vercel as one function, and the CDN serves its static files</h1>
+        <div class="vbg-custom-measure"><p class="vbg-lede">This page is a Django template, rendered by the function it describes. Vercel found <code class="vbg-mono">manage.py</code>, read <code class="vbg-mono">WSGI_APPLICATION</code> from the settings, and ran <code class="vbg-mono">collectstatic</code> because <code class="vbg-mono">STATIC_ROOT</code> is set. There is no <code class="vbg-mono">vercel.json</code>. The values below were rendered into this page by Django, then checked again through <code class="vbg-mono">/api/info</code>.</p></div>
+      </div>
+      <div class="vbg-opening-proof">
+        <div class="vbg-stat-strip">
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Python</p>
+            <p class="vbg-stat-value" id="stat-python">{{ info.python }}</p>
+            <p class="vbg-stat-detail">Chosen from <code class="vbg-mono">.python-version</code></p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Django</p>
+            <p class="vbg-stat-value" id="stat-django">{{ info.django }}</p>
+            <p class="vbg-stat-detail">Installed from <code class="vbg-mono">uv.lock</code></p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Function region</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-region">{{ info.vercel_region|default:"local" }}</span></p>
+            <p class="vbg-stat-detail" id="stat-edge">From <code class="vbg-mono">VERCEL_REGION</code></p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Environment</p>
+            <p class="vbg-stat-value"><span class="vbg-mono" id="stat-env">{{ info.vercel_env }}</span></p>
+            <p class="vbg-stat-detail">From <code class="vbg-mono">VERCEL_ENV</code></p>
+          </div>
+        </div>
+        <p class="vbg-caption" id="opening-status" role="status">Rendered by the template view. Checking <code class="vbg-mono">GET /api/info</code>.</p>
+      </div>
+    </section>
 
-    <h2>Runtime</h2>
-    <table>
-      {% for key, value in info.items %}
-      <tr><th>{{ key }}</th><td>{{ value|default:"-" }}</td></tr>
-      {% endfor %}
-    </table>
+    <section class="vbg-section" aria-labelledby="static-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="static-title">Requests for static files never reach Django</h2>
+        <p>Because <code class="vbg-mono">STATIC_ROOT</code> is set, Vercel ran <code class="vbg-mono">collectstatic</code> during the build. It gathered this page's stylesheet from <code class="vbg-mono">mysite/static/</code> and the admin's CSS and JavaScript from the installed Django package, and put them on its CDN at <code class="vbg-mono">/static/</code>. Vercel's router looks for a matching file before it calls the function.</p>
+      </div>
+      <div class="vbg-span-12">
+        <ol class="vbg-custom-fork" aria-label="How Vercel routes a request to this deployment">
+          <li class="vbg-custom-step">
+            <p class="vbg-label">This browser</p>
+            <p>Requests a path from this deployment.</p>
+          </li>
+          <li class="vbg-custom-step">
+            <p class="vbg-label">Vercel edge</p>
+            <p>Receives it at <span class="vbg-mono" id="fork-edge">…</span> and looks for a file from the build at that path.</p>
+          </li>
+          <li>
+            <ul class="vbg-custom-branches">
+              <li class="vbg-custom-step">
+                <p class="vbg-label">A collected file matches</p>
+                <p>The CDN answers. The function is not called, so <code class="vbg-mono">x-vercel-id</code> carries no function region and Django's headers are absent.</p>
+              </li>
+              <li class="vbg-custom-step">
+                <p class="vbg-label">No file matches</p>
+                <p>The Vercel Function in <span class="vbg-mono" id="fork-region">…</span> runs <code class="vbg-mono">mysite.wsgi.application</code>, and Django's middleware adds <code class="vbg-mono">x-frame-options: DENY</code>.</p>
+              </li>
+            </ul>
+          </li>
+        </ol>
+      </div>
+      <div class="vbg-custom-controls">
+        <button class="vbg-button" id="probe-run" type="button">Request the five paths again</button>
+      </div>
+      <p class="vbg-heading-20" id="probe-summary" role="status">Requesting five paths from this deployment.</p>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Five requests to this deployment and the response headers that show what answered each one</caption>
+          <thead>
+            <tr>
+              <th scope="col">Path</th>
+              <th scope="col">What it is</th>
+              <th scope="col">Answered by</th>
+              <th scope="col"><span class="vbg-custom-nowrap"><code class="vbg-mono">x-frame-options</code></span></th>
+              <th scope="col"><span class="vbg-custom-nowrap"><code class="vbg-mono">x-vercel-cache</code></span></th>
+              <th scope="col" class="vbg-numeric">Status</th>
+              <th scope="col" class="vbg-numeric">Round trip</th>
+            </tr>
+          </thead>
+          <tbody id="probe-rows">
+            <tr data-path="/" data-accept="text/html">
+              <th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">/</code></span></th>
+              <td>This page, from the template view</td>
+              <td>Not requested yet</td><td></td><td></td><td class="vbg-numeric"></td><td class="vbg-numeric"></td>
+            </tr>
+            <tr data-path="{% static 'mysite/style.css' %}" data-accept="text/css">
+              <th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">{% static 'mysite/style.css' %}</code></span></th>
+              <td>This page's stylesheet</td>
+              <td>Not requested yet</td><td></td><td></td><td class="vbg-numeric"></td><td class="vbg-numeric"></td>
+            </tr>
+            <tr data-path="/admin/login/" data-accept="text/html">
+              <th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">/admin/login/</code></span></th>
+              <td>Admin login form</td>
+              <td>Not requested yet</td><td></td><td></td><td class="vbg-numeric"></td><td class="vbg-numeric"></td>
+            </tr>
+            <tr data-path="{% static 'admin/css/base.css' %}" data-accept="text/css">
+              <th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">{% static 'admin/css/base.css' %}</code></span></th>
+              <td>Admin stylesheet, from the Django package</td>
+              <td>Not requested yet</td><td></td><td></td><td class="vbg-numeric"></td><td class="vbg-numeric"></td>
+            </tr>
+            <tr data-path="/api/info" data-accept="application/json">
+              <th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">/api/info</code></span></th>
+              <td>The JSON view</td>
+              <td>Not requested yet</td><td></td><td></td><td class="vbg-numeric"></td><td class="vbg-numeric"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p class="vbg-caption">The Answered by column is read from the <code class="vbg-mono">x-vercel-id</code> header. It names the edge location, the function region and a request ID when a function ran, and only the edge location and a request ID when the CDN answered alone. Django's clickjacking middleware adds <code class="vbg-mono">x-frame-options</code> to every response Django produces. <code class="vbg-mono">x-vercel-cache</code> reads <code class="vbg-mono">HIT</code> when the edge already held the file. Each request bypasses this browser's cache.</p>
+        <details class="vbg-custom-raw">
+          <summary>Response headers from the last run</summary>
+          <pre class="vbg-custom-output vbg-mono" id="probe-raw">Not requested yet.</pre>
+        </details>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="admin-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="admin-title">The admin login page works without a database</h2>
+        <p>An unstyled Django admin is the usual sign that static files are missing on a serverless host. Here the admin's files come from the same <code class="vbg-mono">collectstatic</code> run. Showing the login form runs no database query. Submitting it does, because Django has to look up the user and save a session.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">What each step of an admin login needs, checked live</caption>
+          <thead>
+            <tr><th scope="col">Step</th><th scope="col">Needs the database</th><th scope="col">Live check</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row"><span class="vbg-custom-label">Show the login form</span></th>
+              <td>No</td>
+              <td id="admin-page">Not checked yet</td>
+            </tr>
+            <tr>
+              <th scope="row"><span class="vbg-custom-label">Load its CSS and JavaScript</span></th>
+              <td>No</td>
+              <td id="admin-assets">Not checked yet</td>
+            </tr>
+            <tr>
+              <th scope="row"><span class="vbg-custom-label">Submit the form</span></th>
+              <td>Yes, the <span class="vbg-custom-nowrap"><code class="vbg-mono">auth_user</code></span> and <span class="vbg-custom-nowrap"><code class="vbg-mono">django_session</code></span> tables</td>
+              <td id="admin-db">Database engine <span class="vbg-mono">{{ info.database }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p><a href="/admin/login/">Open the admin login page</a>. To make login work on Vercel, add Neon or another Postgres database from the Marketplace. It sets <code class="vbg-mono">DATABASE_URL</code>, and on the next deployment the build hook in <code class="vbg-mono">pyproject.toml</code> runs <code class="vbg-mono">migrate</code>. Then create a user with <code class="vbg-mono">createsuperuser</code> against that database.</p>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="how-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="how-title">Vercel found the app by reading the settings</h2>
+        <p>During the build, Vercel ran <code class="vbg-mono">manage.py</code> with Django's command runner stubbed out, imported the settings module it names, and read the uppercase settings. Four steps led it to the function's handler.</p>
+      </div>
+      <div class="vbg-span-12">
+        <ol class="vbg-custom-route">
+          <li class="vbg-custom-step">
+            <p class="vbg-label"><code class="vbg-mono">manage.py</code></p>
+            <p>Sets <code class="vbg-mono">DJANGO_SETTINGS_MODULE</code> to <code class="vbg-mono">mysite.settings</code>. Vercel detects Django by finding that name in this file.</p>
+          </li>
+          <li class="vbg-custom-step">
+            <p class="vbg-label"><code class="vbg-mono">mysite/settings.py</code></p>
+            <p>Imported at build time, so it must not reach the network or a database on import.</p>
+          </li>
+          <li class="vbg-custom-step">
+            <p class="vbg-label"><code class="vbg-mono">WSGI_APPLICATION</code></p>
+            <p>Names <code class="vbg-mono">mysite.wsgi.application</code>. An <code class="vbg-mono">ASGI_APPLICATION</code> setting would take priority.</p>
+          </li>
+          <li class="vbg-custom-step">
+            <p class="vbg-label"><code class="vbg-mono">mysite/wsgi.py</code></p>
+            <p>Its <code class="vbg-mono">application</code> object handles every request that doesn't match a static file.</p>
+          </li>
+        </ol>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">The other files and settings Vercel read, and what it did with each</caption>
+          <thead>
+            <tr><th scope="col">Read from</th><th scope="col">What Vercel did</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">STATIC_ROOT</code></span>, <span class="vbg-custom-nowrap"><code class="vbg-mono">STATIC_URL</code></span></th><td>Ran <code class="vbg-mono">collectstatic</code> during the build and served its output from the CDN at <code class="vbg-mono">/static/</code>. Without <code class="vbg-mono">STATIC_ROOT</code> this step is skipped and the admin loses its styling.</td></tr>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">.python-version</code></span></th><td>Installed Python <span id="build-python">{{ info.python }}</span></td></tr>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">uv.lock</code></span></th><td>Installed Django, dj-database-url and psycopg with uv</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">[tool.<wbr>vercel.<wbr>scripts]</code> in <span class="vbg-custom-nowrap"><code class="vbg-mono">pyproject.toml</code></span></th><td>Ran the build hook after installing. It calls <code class="vbg-mono">migrate</code> only when <code class="vbg-mono">DATABASE_URL</code> is set. A Build Command set in the dashboard would replace it.</td></tr>
+            <tr><th scope="row">Project defaults</th><td>Fluid compute, a 300 second default duration, and a read-only filesystem apart from <code class="vbg-mono">/tmp</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="hosts-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="hosts-title">ALLOWED_HOSTS accepts the deployment's own hostnames</h2>
+        <p>With <code class="vbg-mono">DEBUG</code> off, Django answers 400 Bad Request to any <code class="vbg-mono">Host</code> header that isn't in <code class="vbg-mono">ALLOWED_HOSTS</code>. The <code class="vbg-mono">.vercel.app</code> entry covers default deployment URLs but not a custom domain, so <code class="vbg-mono">settings.py</code> also appends the hostnames Vercel puts in three system environment variables. Django checked this request's host, <code class="vbg-mono">{{ hosts.host }}</code>, against each entry.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">ALLOWED_HOSTS entries, where each came from, and whether it accepts this request's host</caption>
+          <thead>
+            <tr><th scope="col">Entry</th><th scope="col">Comes from</th><th scope="col">Accepts this host</th></tr>
+          </thead>
+          <tbody>
+            {% for row in hosts.entries %}
+            <tr>
+              <th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">{{ row.entry }}</code></span></th>
+              <td><span class="vbg-custom-nowrap"><code class="vbg-mono">{{ row.source }}</code></span></td>
+              <td>{{ row.matches|yesno:"Yes,No" }}</td>
+            </tr>
+            {% endfor %}
+            {% for var in hosts.unset %}
+            <tr>
+              <th scope="row">Not set</th>
+              <td><span class="vbg-custom-nowrap"><code class="vbg-mono">{{ var }}</code></span></td>
+              <td>No</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p class="vbg-caption">Rendered by Django for this request. <code class="vbg-mono">VERCEL_URL</code> is the unique deployment URL, <code class="vbg-mono">VERCEL_BRANCH_URL</code> the Git branch alias, and <code class="vbg-mono">VERCEL_PROJECT_PRODUCTION_URL</code> the production domain, which can be a custom domain and is set on preview deployments too. Locally, none of them exist.</p>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="audit-title">
+      <h2 class="vbg-heading-24" id="audit-title">Endpoints and limits</h2>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Endpoints of this deployment</caption>
+          <thead>
+            <tr><th scope="col">Endpoint</th><th scope="col">Answered by</th><th scope="col">What it returns</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><code class="vbg-mono">GET /</code></th><td>Vercel Function</td><td>This page, rendered from <code class="vbg-mono">mysite/<wbr>templates/<wbr>mysite/<wbr>index.html</code></td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /api/<wbr>info</code></th><td>Vercel Function</td><td>Python and Django versions, <code class="vbg-mono">VERCEL_ENV</code>, <code class="vbg-mono">VERCEL_REGION</code> and the database engine, as JSON</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /static/<wbr>mysite/<wbr>style.css</code></th><td>Vercel CDN</td><td>This page's stylesheet, collected from <code class="vbg-mono">mysite/static/</code></td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /static/<wbr>admin/<wbr>css/<wbr>base.css</code></th><td>Vercel CDN</td><td>The admin's stylesheet, collected from the installed Django package</td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /admin/</code></th><td>Vercel Function</td><td>A redirect to <code class="vbg-mono">/admin/login/</code></td></tr>
+            <tr><th scope="row"><code class="vbg-mono">GET /admin/<wbr>login/</code></th><td>Vercel Function</td><td>The admin login form. Submitting it needs <code class="vbg-mono">DATABASE_URL</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p>Request and response bodies are capped at 4.5 MB, and the filesystem is read-only apart from <code class="vbg-mono">/tmp</code>, which belongs to one instance and does not last. Keep uploads in Vercel Blob or S3 and data in Postgres. Migrations have no release step, so they run in the build hook, and preview deployments need their own database, such as a Neon branch.</p>
+        <ul class="vbg-sources">
+          <li><a href="https://vercel.com/docs/frameworks/full-stack/django">Django on Vercel</a></li>
+          <li><a href="https://vercel.com/changelog/zero-configuration-django-support">Zero-configuration Django support</a></li>
+          <li><a href="https://vercel.com/docs/functions/runtimes/python">Python runtime</a></li>
+          <li><a href="https://vercel.com/docs/environment-variables/system-environment-variables">System environment variables</a></li>
+        </ul>
+      </div>
+    </section>
   </main>
+
+  <footer class="vbg-footer">
+    <span class="vbg-logo" role="img" aria-label="Vercel"></span>
+    <span>Source: <code class="vbg-mono">python-on-vercel-demos/02-django</code></span>
+  </footer>
+</div>
+
+{% verbatim %}
+<script>
+const $ = (id) => document.getElementById(id);
+
+// The x-vercel-id header reads "<edge>::<function region>::<id>" when a function
+// ran and "<edge>::<id>" when the CDN answered alone. Locally it is absent.
+function parseVercelId(value) {
+  if (!value) return { edge: null, region: null };
+  const parts = value.split("::");
+  return { edge: parts[0], region: parts.length > 2 ? parts[1] : null };
+}
+
+// One request that skips the browser cache, timed until the body has arrived.
+async function probe(path, accept = "*/*") {
+  const started = performance.now();
+  const res = await fetch(path, { cache: "no-store", headers: { Accept: accept } });
+  const text = await res.text();
+  const ms = performance.now() - started;
+  const header = (name) => res.headers.get(name);
+  return {
+    path, status: res.status, ms, text,
+    route: parseVercelId(header("x-vercel-id")),
+    onVercel: header("x-vercel-id") !== null,
+    cache: header("x-vercel-cache"),
+    frame: header("x-frame-options"),
+    raw: ["x-vercel-id", "x-vercel-cache", "x-frame-options", "cache-control", "content-type", "age"]
+      .map((name) => `${name}: ${header(name) ?? "(not sent)"}`),
+  };
+}
+
+const ranFunction = (r) => r.onVercel && r.route.region !== null;
+const fromCdn = (r) => r.onVercel && r.route.region === null;
+
+// Fill a node with text and <code class="vbg-mono"> parts: ["Vercel Function in ", ["iad1"]].
+function fill(el, parts) {
+  el.replaceChildren(...parts.map((part) => {
+    if (typeof part === "string") return document.createTextNode(part);
+    const code = document.createElement("code");
+    code.className = "vbg-mono";
+    code.textContent = part[0];
+    return code;
+  }));
+}
+
+function answeredBy(r) {
+  if (!r.onVercel) return ["Local server, not Vercel"];
+  return ranFunction(r) ? ["Vercel Function in ", [r.route.region]] : ["Vercel CDN at ", [r.route.edge]];
+}
+
+const ms = (r) => `${Math.round(r.ms)} ms`;
+
+// The opening figures, checked through the JSON view.
+function showInfo(r) {
+  const info = JSON.parse(r.text);
+  $("stat-python").textContent = info.python;
+  $("stat-django").textContent = info.django;
+  $("stat-region").textContent = info.vercel_region ?? "local";
+  $("stat-env").textContent = info.vercel_env;
+  $("build-python").textContent = info.python;
+  if (r.onVercel) {
+    fill($("stat-edge"), ["Reached through edge location ", [r.route.edge]]);
+  } else {
+    fill($("stat-edge"), [["VERCEL_REGION"], " is not set locally"]);
+  }
+  fill($("opening-status"), ["Rendered by the template view, then confirmed by ", ["GET /api/info"], ` in ${ms(r)}.`]);
+  return info;
+}
+
+// The five paths in the table, requested one after another so each round trip is timed on its own.
+async function runProbes() {
+  const button = $("probe-run");
+  button.disabled = true;
+  $("probe-summary").textContent = "Requesting five paths from this deployment.";
+  const rows = [...document.querySelectorAll("#probe-rows tr[data-path]")];
+  const results = [];
+  for (const row of rows) {
+    try { results.push(await probe(row.dataset.path, row.dataset.accept)); }
+    catch (error) { results.push({ path: row.dataset.path, error }); }
+  }
+
+  const raw = [];
+  rows.forEach((row, i) => {
+    const r = results[i];
+    const [, , by, frame, cache, status, time] = row.cells;
+    if (r.error) {
+      by.textContent = `Failed: ${r.error.message}`;
+      [frame, cache, status, time].forEach((c) => (c.textContent = ""));
+      raw.push(`GET ${r.path}\nfailed: ${r.error.message}`);
+      return;
+    }
+    fill(by, answeredBy(r));
+    fill(frame, r.frame ? [[r.frame]] : ["Not sent"]);
+    fill(cache, r.cache ? [[r.cache]] : ["Not sent"]);
+    status.textContent = String(r.status);
+    time.textContent = ms(r);
+    raw.push(`GET ${r.path}\n${r.status} in ${ms(r)}\n${r.raw.join("\n")}`);
+  });
+
+  const ok = results.filter((r) => !r.error);
+  const info = results.find((r) => r.path === "/api/info" && !r.error);
+  if (info) {
+    try {
+      const body = showInfo(info);
+      raw[rows.findIndex((row) => row.dataset.path === "/api/info")] += `\n\n${JSON.stringify(body, null, 2)}`;
+      showDatabase(body);
+    } catch (error) {
+      $("opening-status").textContent = `GET /api/info did not return JSON: ${error.message}`;
+    }
+  } else {
+    $("opening-status").textContent = "Could not reach GET /api/info.";
+  }
+  $("probe-raw").textContent = raw.join("\n\n");
+
+  const edge = ok.find((r) => r.onVercel);
+  const fn = ok.find(ranFunction);
+  $("fork-edge").textContent = edge ? edge.route.edge : "local";
+  $("fork-region").textContent = fn ? fn.route.region : "local";
+
+  const cdn = ok.filter(fromCdn).length;
+  const ran = ok.filter(ranFunction).length;
+  const failed = results.length - ok.length;
+  let summary;
+  if (!ok.length) {
+    summary = "None of the requests reached this deployment.";
+  } else if (!ok.some((r) => r.onVercel)) {
+    summary = `All ${ok.length} requests were answered by the local development server. There is no CDN in front of it, so the split only shows on a Vercel deployment.`;
+  } else {
+    summary = `${cdn} of ${results.length} requests were answered by the CDN without calling the function. The other ${ran} ran Django.`;
+  }
+  if (failed) summary += ` ${failed} failed.`;
+  $("probe-summary").textContent = summary;
+  button.disabled = false;
+}
+
+// What the admin login needs, checked live.
+async function checkAdmin() {
+  try {
+    const page = await probe("/admin/login/", "text/html");
+    const where = page.onVercel ? (ranFunction(page) ? ["the Vercel Function in ", [page.route.region]] : ["the Vercel CDN"]) : ["the local server"];
+    fill($("admin-page"), [["GET /admin/login/"], ` returned ${page.status} from `, ...where, ` in ${ms(page)}`]);
+
+    const doc = new DOMParser().parseFromString(page.text, "text/html");
+    const assets = [...doc.querySelectorAll('link[rel="stylesheet"][href], script[src]')]
+      .map((el) => el.getAttribute("href") || el.getAttribute("src"))
+      .filter((url) => new URL(url, location.href).origin === location.origin);
+    if (!assets.length) {
+      $("admin-assets").textContent = "The login page linked no files from this deployment.";
+      return;
+    }
+    const files = [];
+    for (const url of assets) files.push(await probe(url).catch((error) => ({ error })));
+    const names = assets.map((url) => url.split("/").pop());
+    const loaded = files.filter((r) => !r.error && r.status === 200);
+    const cdn = files.filter((r) => !r.error && fromCdn(r)).length;
+    const list = names.flatMap((name, i) => (i ? [", ", [name]] : [[name]]));
+    let verdict;
+    if (!files.some((r) => r.onVercel)) verdict = `${loaded.length} of ${assets.length} loaded from the local server: `;
+    else if (cdn === assets.length && loaded.length === assets.length) verdict = `All ${assets.length} came from the CDN, none from the function: `;
+    else verdict = `${loaded.length} of ${assets.length} loaded, ${cdn} from the CDN: `;
+    fill($("admin-assets"), [verdict, ...list]);
+  } catch (error) {
+    $("admin-page").textContent = `Failed: ${error.message}`;
+  }
+}
+
+function showDatabase(info) {
+  if (info.database !== "sqlite3") {
+    fill($("admin-db"), ["Database engine ", [info.database], ", from ", ["DATABASE_URL"], ". Login works once migrations have run and a user exists."]);
+  } else if (info.vercel_env === "local") {
+    fill($("admin-db"), ["Database engine ", ["sqlite3"], ", the local ", ["db.sqlite3"], " file. Run ", ["migrate"], " and ", ["createsuperuser"], " to log in locally."]);
+  } else {
+    fill($("admin-db"), ["Database engine ", ["sqlite3"], ". No ", ["DATABASE_URL"], " is set, and the SQLite file can't be created on the read-only filesystem, so submitting returns a 500."]);
+  }
+}
+
+$("probe-run").addEventListener("click", runProbes);
+runProbes().then(checkAdmin);
+</script>
+{% endverbatim %}
 </body>
 </html>

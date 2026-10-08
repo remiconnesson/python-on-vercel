@@ -1,26 +1,86 @@
-body {
+/*
+  Page-owned layout for the explainer page. Typography, color, tables and
+  controls come from https://vercel.com/geist/vercel-brand.css.
+
+  This file lives in mysite/static/. collectstatic copies it into the build
+  output and Vercel serves it from its CDN at /static/mysite/style.css,
+  without calling the Django function. If the page below is laid out in
+  columns, this file loaded.
+*/
+
+.vbg-custom-measure { max-width: 68ch; }
+.vbg-custom-measure > * { margin: 0; }
+
+/* The fork: browser and edge, then the two possible outcomes stacked on the right. */
+ol.vbg-custom-fork {
+  list-style: none;
   margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #0b0b0b;
-  color: #ededed;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--vbg-space-6);
+}
+ol.vbg-custom-fork > li,
+ol.vbg-custom-fork > li + li { margin: 0; min-width: 0; }
+ul.vbg-custom-branches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--vbg-space-6);
+}
+ul.vbg-custom-branches > li,
+ul.vbg-custom-branches > li + li { margin: 0; min-width: 0; }
+
+/* One step of a request path or of the entrypoint chain. */
+.vbg-custom-step {
+  display: grid;
+  gap: var(--vbg-space-2);
+  align-content: start;
+  padding-top: var(--vbg-space-4);
+  border-top: 1px solid var(--vbg-border-strong);
+}
+.vbg-custom-step > * { margin: 0; }
+
+/* The entrypoint chain: four steps in a row. */
+ol.vbg-custom-route {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--vbg-space-6);
+}
+ol.vbg-custom-route > li,
+ol.vbg-custom-route > li + li { margin: 0; min-width: 0; }
+
+/* Paths and identifiers in tables never break mid-word; the table scrolls instead. */
+.vbg-custom-nowrap { white-space: nowrap; }
+/* Short row labels stay on one line on wide screens, where a long neighboring column can wrap. */
+@media (min-width: 721px) {
+  .vbg-custom-label { white-space: nowrap; }
 }
 
-main {
-  max-width: 40rem;
-  margin: 3rem auto;
-  padding: 2rem;
-  background: #1a1a1a;
-  border-radius: 12px;
+.vbg-custom-controls { display: flex; flex-wrap: wrap; gap: var(--vbg-space-4); align-items: center; }
+.vbg-custom-controls > * { margin: 0; }
+
+.vbg-custom-raw > summary { cursor: pointer; }
+.vbg-custom-raw > pre { margin: var(--vbg-space-3) 0 0; }
+.vbg-custom-output {
+  padding: var(--vbg-space-4);
+  background: var(--vbg-surface-secondary);
+  border: 1px solid var(--vbg-border-subtle);
+  border-radius: var(--vbg-radius-small);
+  font-size: var(--vbg-type-compact);
+  line-height: var(--vbg-leading-compact);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-a { color: #44b78b; }
-code { color: #f0c674; }
-
-.badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  background: #0c4b33;
+@media (max-width: 960px) {
+  ol.vbg-custom-route { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-
-th { text-align: left; padding-right: 1.5rem; color: #a1a1a1; font-weight: normal; }
+@media (max-width: 720px) {
+  ol.vbg-custom-fork,
+  ol.vbg-custom-route { grid-template-columns: minmax(0, 1fr); }
+}

@@ -14,10 +14,12 @@ A trimmed `startproject` Django app that deploys to Vercel with **zero configura
     ├── settings.py           # WSGI_APPLICATION, STATIC_ROOT, ALLOWED_HOSTS, optional DATABASE_URL
     ├── wsgi.py               # `application`, the object Vercel serves
     ├── urls.py               # /, /api/info, /admin/
-    ├── views.py              # one template view, one JSON view
-    ├── templates/mysite/index.html
-    └── static/mysite/style.css
+    ├── views.py              # one template view (the explainer page), one JSON view
+    ├── templates/mysite/index.html   # the live explainer page served at /
+    └── static/mysite/style.css       # its page-owned layout, served by the CDN
 ```
+
+Open the deployment in a browser for a live explainer: the page requests its own paths and reads the response headers to show that `/static/` files come from the CDN (no function region in `x-vercel-id`, no Django `x-frame-options`) while everything else runs Django in the function, checks that the admin login page and its assets load without a database, and lists which `ALLOWED_HOSTS` entry accepted the request's host.
 
 ## Run locally
 
@@ -65,7 +67,7 @@ Without `DATABASE_URL`, `/admin/login/` still renders (styled), but submitting i
 ```bash
 URL=https://<your-deployment>.vercel.app   # or http://127.0.0.1:8000 locally
 
-curl $URL/                              # HTML template view listing endpoints + runtime info
+curl $URL/                              # the explainer page (HTML template view)
 curl $URL/api/info                      # {"python": "3.12.x", "django": "6.1.x", "vercel_env": "production", "vercel_region": "iad1", "database": "sqlite3"}
 curl -I $URL/static/mysite/style.css    # app CSS, served by the Vercel CDN
 curl -I $URL/static/admin/css/base.css  # admin CSS from the Django package, also on the CDN
