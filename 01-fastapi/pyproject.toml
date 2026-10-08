@@ -1,0 +1,15 @@
+[project]
+name = "fastapi-on-vercel"
+version = "0.1.0"
+description = "Minimal FastAPI app deployed to Vercel with zero configuration"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.142.2",
+]
+
+# Local-only: Vercel installs with `uv sync --no-dev` and brings its own
+# ASGI server, so uvicorn is not part of the deployed function.
+[dependency-groups]
+dev = [
+    "uvicorn>=0.54.0",
+]

@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Django
+staticfiles/
+*.sqlite3
+
+# Vercel
+.vercel/
+.env*
+!.env.example
+
+# Node (if any demo ships a tiny frontend)
+node_modules/
+
+# OS
+.DS_Store
