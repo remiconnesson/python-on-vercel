@@ -1,0 +1,26 @@
+[project]
+name = "langgraph-workflow"
+version = "0.1.0"
+description = "A LangGraph graph running inside a durable Vercel Workflow (Python SDK)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.142.2",
+    "langchain-openai>=1.6.7",
+    "langgraph>=1.2.13",
+    "vercel-oidc>=0.9.0",
+    # Must be a direct dependency: the Vercel Python builder looks for it to
+    # serve the workflow through Vercel Queues.
+    "vercel-workflow>=0.11.0",
+]
+
+[dependency-groups]
+dev = ["uvicorn>=0.54.0"]  # Local server only; Vercel runs the ASGI app itself.
+
+# The web app: one Vercel Function serving FastAPI.
+[tool.vercel]
+entrypoint = "main:app"
+
+# The Workflows registry ("module:object"): the builder deploys it as a second
+# function that Vercel Queues invoke to run workflow bodies and steps.
+[[tool.vercel.workflows]]
+entrypoint = "agent:wf"
