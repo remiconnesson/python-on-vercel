@@ -35,6 +35,11 @@
   @media (max-width: 560px) {
     .vbg-custom-route { grid-template-columns: minmax(0, 1fr); }
   }
+  .vbg-custom-sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--vbg-space-6); align-items: start; }
+  .vbg-custom-sources > * { margin: 0; min-width: 0; }
+  .vbg-custom-source { display: grid; gap: var(--vbg-space-2); margin: 0; min-width: 0; }
+  .vbg-custom-source > * { margin: 0; }
+  .vbg-custom-source pre { padding: var(--vbg-space-4); background: var(--vbg-surface-secondary); border: 1px solid var(--vbg-border-subtle); border-radius: var(--vbg-radius-small); font-size: var(--vbg-type-compact); line-height: var(--vbg-leading-compact); overflow-x: auto; }
 </style>
 </head>
 <body class="vbg-report">
@@ -134,6 +139,54 @@
         </table>
       </div>
       <p class="vbg-caption">For a step, started is when its first attempt began and finished is when the successful attempt ran. Both are read inside the step with <code class="vbg-mono">workflow.get_step_metadata()</code> and the system clock. The sleep's times are the events that began and ended it.</p>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="code-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="code-title">The workflow is plain async Python with two decorators</h2>
+        <p>Excerpts from <code class="vbg-mono">workflows.py</code> and <code class="vbg-mono">pyproject.toml</code>. A step is a function the workflow can retry and record; the workflow body only orchestrates.</p>
+      </div>
+      <div class="vbg-span-12">
+        <div class="vbg-custom-sources">
+          <figure class="vbg-custom-source">
+            <figcaption class="vbg-label"><code class="vbg-mono">workflows.py</code></figcaption>
+            <pre class="vbg-mono" tabindex="0"><code>wf = workflow.Workflows()
+
+
+@wf.step
+async def charge_card(order_id: str) -&gt; dict:
+    # Fail the first attempt on purpose to show the retry.
+    if workflow.get_step_metadata().attempt == 1:
+        raise RuntimeError(&quot;simulated transient payment error&quot;)
+    return step_record(f&quot;charged card for {order_id}&quot;)
+
+
+@wf.workflow
+async def process_order(order_id: str, delay_seconds: int = 10) -&gt; dict:
+    started_at = workflow.now()
+    reserved = await reserve_inventory(order_id)
+    charged = await charge_card(order_id)
+
+    slept_at = workflow.now()
+    await workflow.sleep(delay_seconds)
+    woke_at = workflow.now()
+
+    receipt = await send_receipt(order_id)
+    return {
+        &quot;steps&quot;: [reserved, charged, receipt],
+        &quot;started_at&quot;: started_at.isoformat(),
+        &quot;slept_at&quot;: slept_at.isoformat(),
+        &quot;woke_at&quot;: woke_at.isoformat(),
+        &quot;delay_seconds&quot;: delay_seconds,
+    }</code></pre>
+          </figure>
+          <figure class="vbg-custom-source">
+            <figcaption class="vbg-label"><code class="vbg-mono">pyproject.toml</code></figcaption>
+            <pre class="vbg-mono" tabindex="0"><code>[[tool.vercel.workflows]]
+entrypoint = &quot;workflows:wf&quot;</code></pre>
+          </figure>
+        </div>
+      </div>
     </section>
 
     <section class="vbg-section" aria-labelledby="replay-title">
@@ -692,6 +745,83 @@ new ResizeObserver((entries) => {
 
 loadInfo().then(() => { if (!state.run) resume(); });
 drawTimeline();
+</script>
+<style>
+  /* Syntax colors for code painted by gpu-lexer (see the script below). */
+  .vbg-custom-tok-keyword { color: var(--vbg-color-error); }
+  .vbg-custom-tok-function { color: var(--vbg-color-info); }
+  .vbg-custom-tok-string { color: var(--vbg-color-success); }
+  .vbg-custom-tok-number, .vbg-custom-tok-constant, .vbg-custom-tok-type { color: var(--vbg-color-warning); }
+  .vbg-custom-tok-comment, .vbg-custom-tok-operator { color: var(--vbg-text-secondary); }
+</style>
+<script type="module">
+  // Syntax highlighting with gpu-lexer (https://gpu-lexer.vercel.app/), a small WebGPU
+  // model that labels tokens in any language, so no block needs a language name.
+  // Every <pre> is painted, and painted again when the page rewrites it (live outputs).
+  // Without WebGPU the import or parse fails and the code stays plain.
+  // Opt a block out with data-highlight="off".
+  const lexer = import("https://cdn.jsdelivr.net/npm/gpu-lexer@0.0.3/dist/index.js").catch(() => null);
+  const painted = new WeakMap();
+  const pending = new Set();
+  let timer;
+
+  async function paint(pre) {
+    const target = pre.querySelector("code") ?? pre;
+    const text = target.textContent;
+    if (!text.trim() || painted.get(target) === text) return;
+    const mod = await lexer;
+    if (!mod) return;
+    let spans;
+    try {
+      spans = await mod.parse(text);
+    } catch {
+      return;
+    }
+    if (target.textContent !== text) return; // rewritten while parsing; painted on the next pass
+    const out = document.createDocumentFragment();
+    let cursor = 0;
+    for (const { type, start, end } of spans) {
+      if (start > cursor) out.append(text.slice(cursor, start));
+      const part = text.slice(start, end);
+      if (type === "plain") {
+        out.append(part);
+      } else {
+        const span = document.createElement("span");
+        span.className = `vbg-custom-tok-${type}`;
+        span.textContent = part;
+        out.append(span);
+      }
+      cursor = end;
+    }
+    if (cursor < text.length) out.append(text.slice(cursor));
+    painted.set(target, text);
+    target.replaceChildren(out);
+  }
+
+  function schedule(pre) {
+    if (pre.dataset.highlight === "off") return;
+    pending.add(pre);
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const batch = [...pending];
+      pending.clear();
+      batch.forEach(paint);
+    }, 120);
+  }
+
+  document.querySelectorAll("pre").forEach(schedule);
+  new MutationObserver((records) => {
+    for (const record of records) {
+      const node = record.target.nodeType === Node.ELEMENT_NODE ? record.target : record.target.parentElement;
+      const pre = node?.closest("pre");
+      if (pre) schedule(pre);
+      for (const added of record.addedNodes) {
+        if (added.nodeType !== Node.ELEMENT_NODE) continue;
+        if (added.matches("pre")) schedule(added);
+        added.querySelectorAll("pre").forEach(schedule);
+      }
+    }
+  }).observe(document.body, { subtree: true, childList: true, characterData: true });
 </script>
 </body>
 </html>

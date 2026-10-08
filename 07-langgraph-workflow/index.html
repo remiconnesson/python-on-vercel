@@ -48,6 +48,11 @@
   @media (max-width: 720px) {
     .vbg-custom-route, .vbg-custom-review { grid-template-columns: minmax(0, 1fr); }
   }
+  .vbg-custom-sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--vbg-space-6); align-items: start; }
+  .vbg-custom-sources > * { margin: 0; min-width: 0; }
+  .vbg-custom-source { display: grid; gap: var(--vbg-space-2); margin: 0; min-width: 0; }
+  .vbg-custom-source > * { margin: 0; }
+  .vbg-custom-source pre { padding: var(--vbg-space-4); background: var(--vbg-surface-secondary); border: 1px solid var(--vbg-border-subtle); border-radius: var(--vbg-radius-small); font-size: var(--vbg-type-compact); line-height: var(--vbg-leading-compact); overflow-x: auto; }
 </style>
 </head>
 <body class="vbg-report">
@@ -172,6 +177,51 @@
             <tr><td colspan="5">Start a run to record its state changes.</td></tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="code-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="code-title">The review node waits on a Workflow hook instead of an interrupt</h2>
+        <p>Excerpts from <code class="vbg-mono">agent.py</code>. The model call is a durable step, the graph is ordinary LangGraph, and the whole graph runs inside one workflow.</p>
+      </div>
+      <div class="vbg-span-12">
+        <div class="vbg-custom-sources">
+          <figure class="vbg-custom-source">
+            <figcaption class="vbg-label"><code class="vbg-mono">agent.py</code>: the step and the review node</figcaption>
+            <pre class="vbg-mono" tabindex="0"><code>@wf.step
+async def generate(prompt: str) -&gt; str:
+    model = await chat_model()
+    message = await model.ainvoke(prompt)
+    return str(message.text)
+
+
+async def review(state: State) -&gt; dict:
+    token = approval_token(workflow.get_workflow_metadata().run_id)
+    metadata = {&quot;draft&quot;: state[&quot;draft&quot;], &quot;draft_number&quot;: state[&quot;drafts&quot;]}
+    async with Approval.wait(token=token, metadata=metadata) as hook:
+        decision = await hook
+    return {&quot;approved&quot;: decision.approved, &quot;feedback&quot;: decision.feedback}</code></pre>
+          </figure>
+          <figure class="vbg-custom-source">
+            <figcaption class="vbg-label"><code class="vbg-mono">agent.py</code>: the graph and the workflow</figcaption>
+            <pre class="vbg-mono" tabindex="0"><code>builder = StateGraph(State)
+builder.add_node(&quot;write&quot;, write)
+builder.add_node(&quot;review&quot;, review)
+builder.add_edge(START, &quot;write&quot;)
+builder.add_edge(&quot;write&quot;, &quot;review&quot;)
+builder.add_conditional_edges(&quot;review&quot;, after_review)
+graph = builder.compile()
+
+
+@wf.workflow
+async def run_agent(*, topic: str) -&gt; dict:
+    state = await graph.ainvoke(
+        {&quot;topic&quot;: topic, &quot;draft&quot;: &quot;&quot;, &quot;drafts&quot;: 0, &quot;feedback&quot;: &quot;&quot;, &quot;approved&quot;: False}
+    )
+    return {&quot;topic&quot;: topic, &quot;draft&quot;: state[&quot;draft&quot;], &quot;drafts&quot;: state[&quot;drafts&quot;]}</code></pre>
+          </figure>
+        </div>
       </div>
     </section>
 
@@ -925,6 +975,83 @@ new ResizeObserver(([entry]) => {
 const reopenId = new URLSearchParams(location.search).get("run");
 if (reopenId && /^wrun_[0-9A-Z]+$/.test(reopenId)) reopenRun(reopenId);
 else render();
+</script>
+<style>
+  /* Syntax colors for code painted by gpu-lexer (see the script below). */
+  .vbg-custom-tok-keyword { color: var(--vbg-color-error); }
+  .vbg-custom-tok-function { color: var(--vbg-color-info); }
+  .vbg-custom-tok-string { color: var(--vbg-color-success); }
+  .vbg-custom-tok-number, .vbg-custom-tok-constant, .vbg-custom-tok-type { color: var(--vbg-color-warning); }
+  .vbg-custom-tok-comment, .vbg-custom-tok-operator { color: var(--vbg-text-secondary); }
+</style>
+<script type="module">
+  // Syntax highlighting with gpu-lexer (https://gpu-lexer.vercel.app/), a small WebGPU
+  // model that labels tokens in any language, so no block needs a language name.
+  // Every <pre> is painted, and painted again when the page rewrites it (live outputs).
+  // Without WebGPU the import or parse fails and the code stays plain.
+  // Opt a block out with data-highlight="off".
+  const lexer = import("https://cdn.jsdelivr.net/npm/gpu-lexer@0.0.3/dist/index.js").catch(() => null);
+  const painted = new WeakMap();
+  const pending = new Set();
+  let timer;
+
+  async function paint(pre) {
+    const target = pre.querySelector("code") ?? pre;
+    const text = target.textContent;
+    if (!text.trim() || painted.get(target) === text) return;
+    const mod = await lexer;
+    if (!mod) return;
+    let spans;
+    try {
+      spans = await mod.parse(text);
+    } catch {
+      return;
+    }
+    if (target.textContent !== text) return; // rewritten while parsing; painted on the next pass
+    const out = document.createDocumentFragment();
+    let cursor = 0;
+    for (const { type, start, end } of spans) {
+      if (start > cursor) out.append(text.slice(cursor, start));
+      const part = text.slice(start, end);
+      if (type === "plain") {
+        out.append(part);
+      } else {
+        const span = document.createElement("span");
+        span.className = `vbg-custom-tok-${type}`;
+        span.textContent = part;
+        out.append(span);
+      }
+      cursor = end;
+    }
+    if (cursor < text.length) out.append(text.slice(cursor));
+    painted.set(target, text);
+    target.replaceChildren(out);
+  }
+
+  function schedule(pre) {
+    if (pre.dataset.highlight === "off") return;
+    pending.add(pre);
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const batch = [...pending];
+      pending.clear();
+      batch.forEach(paint);
+    }, 120);
+  }
+
+  document.querySelectorAll("pre").forEach(schedule);
+  new MutationObserver((records) => {
+    for (const record of records) {
+      const node = record.target.nodeType === Node.ELEMENT_NODE ? record.target : record.target.parentElement;
+      const pre = node?.closest("pre");
+      if (pre) schedule(pre);
+      for (const added of record.addedNodes) {
+        if (added.nodeType !== Node.ELEMENT_NODE) continue;
+        if (added.matches("pre")) schedule(added);
+        added.querySelectorAll("pre").forEach(schedule);
+      }
+    }
+  }).observe(document.body, { subtree: true, childList: true, characterData: true });
 </script>
 </body>
 </html>

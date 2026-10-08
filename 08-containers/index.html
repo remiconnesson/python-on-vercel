@@ -105,7 +105,7 @@
           </div>
           <p class="vbg-helper" id="figlet-helper">Up to 40 characters, the most the endpoint passes to figlet.</p>
         </form>
-        <pre class="vbg-custom-block vbg-custom-art vbg-mono" id="figlet-out" tabindex="0">…</pre>
+        <pre class="vbg-custom-block vbg-custom-art vbg-mono" id="figlet-out" data-highlight="off" tabindex="0">…</pre>
         <p class="vbg-caption" id="figlet-status" role="status">Rendering the default text.</p>
       </div>
     </section>
@@ -453,6 +453,83 @@ $("reuse-seq").addEventListener("click", () => runReuse(false));
 $("reuse-par").addEventListener("click", () => runReuse(true));
 loadOpening();
 runFiglet();
+</script>
+<style>
+  /* Syntax colors for code painted by gpu-lexer (see the script below). */
+  .vbg-custom-tok-keyword { color: var(--vbg-color-error); }
+  .vbg-custom-tok-function { color: var(--vbg-color-info); }
+  .vbg-custom-tok-string { color: var(--vbg-color-success); }
+  .vbg-custom-tok-number, .vbg-custom-tok-constant, .vbg-custom-tok-type { color: var(--vbg-color-warning); }
+  .vbg-custom-tok-comment, .vbg-custom-tok-operator { color: var(--vbg-text-secondary); }
+</style>
+<script type="module">
+  // Syntax highlighting with gpu-lexer (https://gpu-lexer.vercel.app/), a small WebGPU
+  // model that labels tokens in any language, so no block needs a language name.
+  // Every <pre> is painted, and painted again when the page rewrites it (live outputs).
+  // Without WebGPU the import or parse fails and the code stays plain.
+  // Opt a block out with data-highlight="off".
+  const lexer = import("https://cdn.jsdelivr.net/npm/gpu-lexer@0.0.3/dist/index.js").catch(() => null);
+  const painted = new WeakMap();
+  const pending = new Set();
+  let timer;
+
+  async function paint(pre) {
+    const target = pre.querySelector("code") ?? pre;
+    const text = target.textContent;
+    if (!text.trim() || painted.get(target) === text) return;
+    const mod = await lexer;
+    if (!mod) return;
+    let spans;
+    try {
+      spans = await mod.parse(text);
+    } catch {
+      return;
+    }
+    if (target.textContent !== text) return; // rewritten while parsing; painted on the next pass
+    const out = document.createDocumentFragment();
+    let cursor = 0;
+    for (const { type, start, end } of spans) {
+      if (start > cursor) out.append(text.slice(cursor, start));
+      const part = text.slice(start, end);
+      if (type === "plain") {
+        out.append(part);
+      } else {
+        const span = document.createElement("span");
+        span.className = `vbg-custom-tok-${type}`;
+        span.textContent = part;
+        out.append(span);
+      }
+      cursor = end;
+    }
+    if (cursor < text.length) out.append(text.slice(cursor));
+    painted.set(target, text);
+    target.replaceChildren(out);
+  }
+
+  function schedule(pre) {
+    if (pre.dataset.highlight === "off") return;
+    pending.add(pre);
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const batch = [...pending];
+      pending.clear();
+      batch.forEach(paint);
+    }, 120);
+  }
+
+  document.querySelectorAll("pre").forEach(schedule);
+  new MutationObserver((records) => {
+    for (const record of records) {
+      const node = record.target.nodeType === Node.ELEMENT_NODE ? record.target : record.target.parentElement;
+      const pre = node?.closest("pre");
+      if (pre) schedule(pre);
+      for (const added of record.addedNodes) {
+        if (added.nodeType !== Node.ELEMENT_NODE) continue;
+        if (added.matches("pre")) schedule(added);
+        added.querySelectorAll("pre").forEach(schedule);
+      }
+    }
+  }).observe(document.body, { subtree: true, childList: true, characterData: true });
 </script>
 </body>
 </html>
