@@ -71,6 +71,7 @@ async def generate(prompt: str) -> str:
 class State(TypedDict):
     topic: str
     draft: str
+    drafts: int  # How many drafts `write` has produced so far.
     feedback: str
     approved: bool
 
@@ -90,14 +91,16 @@ async def write(state: State) -> dict:
     prompt = f"Write a three-sentence product blurb about: {state['topic']}"
     if state["feedback"]:
         prompt += f"\n\nRevise this draft:\n{state['draft']}\n\nFeedback: {state['feedback']}"
-    return {"draft": await generate(prompt)}  # A durable step, not a plain call.
+    # A durable step, not a plain call.
+    return {"draft": await generate(prompt), "drafts": state["drafts"] + 1}
 
 
 async def review(state: State) -> dict:
     token = approval_token(workflow.get_workflow_metadata().run_id)
     # The run suspends here without using compute until the hook is resumed.
     # The metadata lets GET /api/runs/{run_id} show the draft that awaits review.
-    async with Approval.wait(token=token, metadata={"draft": state["draft"]}) as hook:
+    metadata = {"draft": state["draft"], "draft_number": state["drafts"]}
+    async with Approval.wait(token=token, metadata=metadata) as hook:
         decision = await hook
     return {"approved": decision.approved, "feedback": decision.feedback}
 
@@ -119,5 +122,7 @@ graph = builder.compile()  # No checkpointer: the Workflow event log is the pers
 
 @wf.workflow
 async def run_agent(*, topic: str) -> dict:
-    state = await graph.ainvoke({"topic": topic, "draft": "", "feedback": "", "approved": False})
-    return {"topic": topic, "draft": state["draft"]}
+    state = await graph.ainvoke(
+        {"topic": topic, "draft": "", "drafts": 0, "feedback": "", "approved": False}
+    )
+    return {"topic": topic, "draft": state["draft"], "drafts": state["drafts"]}

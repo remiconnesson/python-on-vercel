@@ -1,0 +1,930 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LangGraph on Vercel Workflow</title>
+<meta name="description" content="A LangGraph graph that waits for human approval inside a durable Vercel Workflow, explained and tested live.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" referrerpolicy="no-referrer">
+<link href="https://vercel.com/geist/vercel-brand.css" rel="stylesheet">
+<style>
+  /* Page-owned layout and marks only. Everything else comes from the published foundation. */
+  .vbg-custom-measure { max-width: 68ch; }
+  .vbg-custom-measure > * { margin: 0; }
+  .vbg-custom-tool { display: grid; gap: var(--vbg-space-6); }
+  .vbg-custom-tool > * { margin: 0; min-width: 0; }
+  .vbg-custom-controls { display: flex; flex-wrap: wrap; gap: var(--vbg-space-3); align-items: end; }
+  .vbg-custom-controls > * { margin: 0; }
+  .vbg-custom-grow { flex: 1 1 20rem; min-width: 0; }
+  .vbg-custom-grow input { width: 100%; }
+  .vbg-custom-status { display: grid; gap: var(--vbg-space-2); }
+  .vbg-custom-status > * { margin: 0; }
+  .vbg-custom-review { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--vbg-space-8); align-items: start; }
+  .vbg-custom-review > * { margin: 0; min-width: 0; }
+  .vbg-custom-stack { display: grid; gap: var(--vbg-space-3); align-content: start; }
+  .vbg-custom-stack > * { margin: 0; min-width: 0; }
+  .vbg-custom-draft { margin: 0; padding: var(--vbg-space-4); min-height: 7rem; background: var(--vbg-surface-secondary); border: 1px solid var(--vbg-border-subtle); border-radius: var(--vbg-radius-small); white-space: pre-wrap; overflow-wrap: break-word; }
+  .vbg-custom-review textarea { width: 100%; min-height: 5rem; }
+  .vbg-custom-nowrap { white-space: nowrap; }
+  .vbg-custom-graph, .vbg-custom-timeline { display: block; width: 100%; height: auto; }
+  .vbg-viz-node { fill: var(--vbg-surface-primary); stroke: var(--vbg-border-strong); stroke-width: 1.5; }
+  .vbg-viz-node[data-state="active"] { stroke: var(--vbg-text-primary); stroke-width: 3; }
+  .vbg-viz-node[data-state="waiting"] { stroke: var(--vbg-color-info); stroke-width: 3; }
+  .vbg-viz-node[data-state="done"] { stroke: var(--vbg-color-success); stroke-width: 3; }
+  .vbg-viz-node[data-state="failed"] { stroke: var(--vbg-color-error); stroke-width: 3; }
+  .vbg-viz-terminal { fill: var(--vbg-text-primary); }
+  .vbg-viz-edge { fill: none; stroke: var(--vbg-border-default); stroke-width: 1.5; stroke-dasharray: 5 5; }
+  .vbg-viz-edge[data-taken] { stroke: var(--vbg-text-primary); stroke-dasharray: none; }
+  .vbg-viz-head { fill: var(--vbg-border-default); }
+  .vbg-viz-head[data-taken] { fill: var(--vbg-text-primary); }
+  .vbg-custom-route { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--vbg-space-6); }
+  ol.vbg-custom-route > li, ol.vbg-custom-route > li + li { margin: 0; min-width: 0; display: grid; gap: var(--vbg-space-2); align-content: start; padding-top: var(--vbg-space-4); border-top: 1px solid var(--vbg-border-strong); }
+  .vbg-custom-route > li > * { margin: 0; }
+  @media (max-width: 960px) {
+    .vbg-custom-route { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 720px) {
+    .vbg-custom-route, .vbg-custom-review { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body class="vbg-report">
+<div class="vbg-shell">
+  <a class="vbg-skip-link" href="#main">Skip to content</a>
+  <header class="vbg-header">
+    <div class="vbg-masthead">
+      <span class="vbg-identity"><span class="vbg-wordmark" role="img" aria-label="Vercel"></span></span>
+      <div class="vbg-document-meta">
+        <span class="vbg-context">Python on Vercel, demo 7 of 8</span>
+        <span class="vbg-state">Live deployment</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="vbg-opening" aria-labelledby="title">
+      <div class="vbg-opening-claim">
+        <h1 class="vbg-title" id="title">A LangGraph graph waits for your approval inside a durable Vercel Workflow</h1>
+        <div class="vbg-custom-measure"><p class="vbg-lede">Give it a topic. The graph writes a short product blurb with an LLM, then stops at review until you approve the draft or ask for changes. That stop is a Workflow hook: the run is suspended with no function kept running, and it continues from the same point when you answer. Everything on this page comes from this deployment's API as you use it.</p></div>
+      </div>
+      <div class="vbg-opening-proof">
+        <div class="vbg-custom-tool">
+          <form class="vbg-custom-controls" id="start-form">
+            <div class="vbg-field vbg-custom-grow">
+              <label class="vbg-label" for="topic">Topic for the blurb</label>
+              <input id="topic" name="topic" value="a solar-powered kettle" maxlength="200" autocomplete="off" required>
+            </div>
+            <button class="vbg-button" id="start" type="submit">Start a run</button>
+          </form>
+
+          <figure class="vbg-chart">
+            <div class="vbg-chart-header">
+              <h2 class="vbg-heading-16" id="graph-title">Where the graph is now</h2>
+            </div>
+            <div class="vbg-chart-viewport" tabindex="0">
+              <svg class="vbg-custom-graph" id="graph-svg" viewBox="0 0 1000 196" role="img" aria-labelledby="graph-title graph-desc">
+                <desc id="graph-desc">The graph: start, then write, then review, then end. Review loops back to write when a draft is rejected. No run yet.</desc>
+              </svg>
+            </div>
+            <figcaption class="vbg-caption">Solid edges are the ones this run has taken; dashed edges are not taken yet. The node with the thick outline is where the graph is now, and its last line says what it is doing.</figcaption>
+          </figure>
+
+          <div class="vbg-custom-status">
+            <p class="vbg-heading-20" id="status" role="status">No run yet. Start one to set the graph in motion.</p>
+            <p class="vbg-caption" id="status-detail"><code class="vbg-mono">POST /api/runs</code> calls <code class="vbg-mono">workflow.start()</code>, which records the run and queues it, then returns its id before the graph runs.</p>
+          </div>
+
+          <div class="vbg-custom-review">
+            <div class="vbg-custom-stack">
+              <h3 class="vbg-heading-16" id="review-title">No draft yet</h3>
+              <div class="vbg-custom-draft" id="draft">The draft appears here when the graph pauses at review.</div>
+            </div>
+            <div class="vbg-custom-stack">
+              <h3 class="vbg-heading-16">Your answer</h3>
+              <div class="vbg-custom-controls"><button class="vbg-button" id="approve" type="button" disabled>Approve this draft</button></div>
+              <div class="vbg-field">
+                <label class="vbg-label" for="feedback">Feedback for the next draft</label>
+                <textarea id="feedback" disabled>Make it shorter and more concrete.</textarea>
+              </div>
+              <p class="vbg-error" id="feedback-error" hidden>Write some feedback first, so the next draft has something to change.</p>
+              <div class="vbg-custom-controls"><button class="vbg-button" id="reject" type="button" disabled>Send feedback and revise</button></div>
+              <p class="vbg-helper">Both buttons call <code class="vbg-mono">POST /api/runs/{id}/approve</code>, which resumes the hook with your answer.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="log-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="log-title">The run stays paused for as long as you take, then resumes where it stopped</h2>
+        <p>Waiting on a hook keeps no function running: until your answer queues the run again, it exists only as records in the Workflow event log. This page checks <code class="vbg-mono">GET /api/runs/{id}</code> about once a second while the graph works and every 3 seconds while it waits, so a time below can be up to one check late. Pause lengths are exact: the server measures each one from the moment the hook was created to the moment your answer resumed it.</p>
+        <p id="run-link-line">Start a run above to fill this record.</p>
+      </div>
+      <div class="vbg-stat-strip">
+        <div class="vbg-stat">
+          <p class="vbg-stat-label">Drafts written</p>
+          <p class="vbg-stat-value" id="stat-drafts">0</p>
+          <p class="vbg-stat-detail">Counted in the graph's own state</p>
+        </div>
+        <div class="vbg-stat">
+          <p class="vbg-stat-label">Waiting for you</p>
+          <p class="vbg-stat-value" id="stat-paused">0.0 s</p>
+          <p class="vbg-stat-detail" id="stat-paused-detail">Measured on the server, hook creation to your answer</p>
+        </div>
+        <div class="vbg-stat">
+          <p class="vbg-stat-label">Graph working</p>
+          <p class="vbg-stat-value" id="stat-working">0.0 s</p>
+          <p class="vbg-stat-detail">Seen from this browser, up to one check late</p>
+        </div>
+        <div class="vbg-stat">
+          <p class="vbg-stat-label">Status checks</p>
+          <p class="vbg-stat-value" id="stat-polls">0</p>
+          <p class="vbg-stat-detail" id="stat-polls-detail">Each one a separate short request</p>
+        </div>
+      </div>
+      <figure class="vbg-chart">
+        <div class="vbg-chart-header">
+          <h3 class="vbg-heading-16" id="timeline-title">Where this run's time went</h3>
+        </div>
+        <div class="vbg-chart-viewport" tabindex="0">
+          <svg class="vbg-custom-timeline" id="timeline-svg" viewBox="0 0 1000 150" role="img" aria-labelledby="timeline-title timeline-desc">
+            <desc id="timeline-desc">No run yet.</desc>
+          </svg>
+        </div>
+        <figcaption class="vbg-caption" id="timeline-caption">Each bar is a stretch of the run, placed by when this browser saw it begin and end. With a real model, writing a draft takes seconds; the pause lasts as long as you take to answer.</figcaption>
+      </figure>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Every state change of this run that the page observed</caption>
+          <thead>
+            <tr>
+              <th scope="col">Event</th>
+              <th scope="col">Seen at</th>
+              <th scope="col" class="vbg-numeric">Since start</th>
+              <th scope="col">Request</th>
+              <th scope="col">Evidence</th>
+            </tr>
+          </thead>
+          <tbody id="log-rows">
+            <tr><td colspan="5">Start a run to record its state changes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="map-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="map-title">Workflow makes each node durable, so the graph needs no checkpointer</h2>
+        <p>The whole graph runs inside the body of a workflow function. Workflow writes every step result and hook answer to the run's event log, an append-only record of what happened. Each time the run wakes up, Workflow runs the body again from the top and answers every finished step and hook from that record, so LangGraph is back at the same node within milliseconds and the model is never called twice for the same draft.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">How each part of the LangGraph graph maps onto Vercel Workflow</caption>
+          <thead>
+            <tr><th scope="col">Graph part</th><th scope="col">Runs as</th><th scope="col">What Workflow does with it</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">graph.ainvoke()</code></span></th><td>The body of <span class="vbg-custom-nowrap"><code class="vbg-mono">@wf.workflow run_agent</code></span></td><td>Replays it from the start on every wake-up, after a step finishes or a hook receives an answer</td></tr>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">write</code></span> node</th><td>A call to <span class="vbg-custom-nowrap"><code class="vbg-mono">generate()</code></span>, a <span class="vbg-custom-nowrap"><code class="vbg-mono">@wf.step</code></span></td><td>Runs the LLM call as its own invocation, retries it up to 3 times, and records the text it returns</td></tr>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">review</code></span> node</th><td><span class="vbg-custom-nowrap"><code class="vbg-mono">Approval.wait()</code></span>, a Workflow hook, instead of LangGraph's <span class="vbg-custom-nowrap"><code class="vbg-mono">interrupt()</code></span></td><td>Suspends the run; <span class="vbg-custom-nowrap"><code class="vbg-mono">Approval(...).resume(token)</code></span> records your answer and queues the run again</td></tr>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">after_review</code></span></th><td>An <span class="vbg-custom-nowrap"><code class="vbg-mono">async def</code></span> conditional edge</td><td>Ends the graph when you approve, otherwise sends it back to <span class="vbg-custom-nowrap"><code class="vbg-mono">write</code></span> with your feedback</td></tr>
+            <tr><th scope="row">Checkpointer</th><td>None</td><td>The event log is the persistence, so there is no database to set up; LangGraph's <span class="vbg-custom-nowrap"><code class="vbg-mono">get_state()</code></span> and time travel are not available</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-custom-measure"><p class="vbg-note">There is no official LangGraph integration for Vercel Workflow. This demo is a pattern built on the public SDKs of both, following the official example that runs another agent loop inside a workflow body.</p></div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="how-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="how-title">Vercel deployed two functions from one pyproject.toml</h2>
+        <p>The folder holds <code class="vbg-mono">main.py</code>, <code class="vbg-mono">agent.py</code>, <code class="vbg-mono">pyproject.toml</code> and <code class="vbg-mono">uv.lock</code>. There is no <code class="vbg-mono">vercel.json</code> and no environment variable to set.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Build decisions and where each one came from</caption>
+          <thead>
+            <tr><th scope="col">Decision</th><th scope="col">Read from</th><th scope="col">Result</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Web&nbsp;function</th><td><span class="vbg-custom-nowrap"><code class="vbg-mono">[tool.vercel]</code></span></td><td><span class="vbg-custom-nowrap"><code class="vbg-mono">main:app</code></span>, the FastAPI app that serves this page and the run API</td></tr>
+            <tr><th scope="row">Workflow&nbsp;function</th><td><span class="vbg-custom-nowrap"><code class="vbg-mono">[[tool.vercel.workflows]]</code></span></td><td><span class="vbg-custom-nowrap"><code class="vbg-mono">agent:wf</code></span>, deployed as a second function that Vercel Queues invoke to run workflow bodies and steps; the builder imports it to find its queue topics</td></tr>
+            <tr><th scope="row">Run&nbsp;storage</th><td><span class="vbg-custom-nowrap"><code class="vbg-mono">vercel-workflow</code></span> dependency</td><td>A managed event log for runs, steps and hooks, with nothing to provision</td></tr>
+            <tr><th scope="row">Model&nbsp;access</th><td><span class="vbg-custom-nowrap"><code class="vbg-mono">ChatOpenAI</code></span> pointed at AI Gateway</td><td>Authenticated with the deployment's OIDC token, so no API key is stored; model <span class="vbg-custom-nowrap"><code class="vbg-mono">openai/gpt-5.4-nano</code></span> unless <span class="vbg-custom-nowrap"><code class="vbg-mono">AI_GATEWAY_MODEL</code></span> is set</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3 class="vbg-heading-20">The path of a run</h3>
+      <div class="vbg-span-12">
+      <ol class="vbg-custom-route">
+        <li>
+          <p class="vbg-label">This browser</p>
+          <p>Starts the run with <code class="vbg-mono">POST /api/runs</code>, checks it with <code class="vbg-mono">GET</code>, and answers with <code class="vbg-mono">POST …/approve</code>.</p>
+        </li>
+        <li>
+          <p class="vbg-label">Web function</p>
+          <p>FastAPI in <span class="vbg-mono" id="route-region">…</span>, reached through <span class="vbg-mono" id="route-edge">…</span>, records the start or your answer as an event, queues the run, and returns.</p>
+        </li>
+        <li>
+          <p class="vbg-label">Vercel Queues</p>
+          <p>Deliver the run to the workflow function, and each step as its own message.</p>
+        </li>
+        <li>
+          <p class="vbg-label">Workflow function</p>
+          <p>Replays <code class="vbg-mono">run_agent</code> from the event log, runs the graph to the next step or hook, records the result, and exits.</p>
+        </li>
+      </ol>
+      </div>
+      <p class="vbg-caption" id="route-caption">The region and edge location come from the <code class="vbg-mono">x-vercel-id</code> header of this page's last API response. The workflow function does not answer the browser, so its region is not shown.</p>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="audit-title">
+      <h2 class="vbg-heading-24" id="audit-title">Endpoints and limits</h2>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Endpoints served by this app</caption>
+          <thead>
+            <tr><th scope="col">Endpoint</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">GET /</code></span></th><td>This page for browsers, an endpoint listing as JSON for everything else</td></tr>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">POST /api/runs</code></span></th><td>Starts a run from <span class="vbg-custom-nowrap"><code class="vbg-mono">{"topic": "..."}</code></span> and returns its <span class="vbg-custom-nowrap"><code class="vbg-mono">run_id</code></span></td></tr>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">GET /api/runs/{run_id}</code></span></th><td>The run's status, plus the draft, its number and the pause time while it waits, or the result once it completes</td></tr>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">POST /api/runs/{run_id}/approve</code></span></th><td>Resumes the hook with <span class="vbg-custom-nowrap"><code class="vbg-mono">{"approved": true}</code></span> or <span class="vbg-custom-nowrap"><code class="vbg-mono">{"approved": false, "feedback": "..."}</code></span> and returns the pause length; 409 when the run is not waiting</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p>The Python Workflow SDK is in beta. Every graph node and router is <code class="vbg-mono">async def</code>, because the workflow sandbox blocks the thread pool LangGraph uses for plain functions. LangChain is served to the sandbox from the regular interpreter through <code class="vbg-mono">passthrough_modules</code>, and step results are plain strings because Workflow can only record data it can serialize. Each wake-up replays every earlier node, so a long review loop does a little more work on every resume.</p>
+        <ul class="vbg-sources">
+          <li><a href="https://workflow-sdk.dev/docs/getting-started/python">Workflow SDK for Python</a></li>
+          <li><a href="https://vercel.com/docs/workflows">Vercel Workflow</a></li>
+          <li><a href="https://docs.langchain.com/oss/python/langgraph/interrupts">LangGraph interrupts</a></li>
+          <li><a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/oidc">AI Gateway with OIDC</a></li>
+          <li><a href="https://github.com/vercel-labs/ai-python/tree/main/examples/apps/durable_agent_workflows">Durable agent workflows example</a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vbg-footer">
+    <span class="vbg-logo" role="img" aria-label="Vercel"></span>
+    <span>Source: <code class="vbg-mono">python-on-vercel-demos/07-langgraph-workflow</code></span>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SVG = "http://www.w3.org/2000/svg";
+const POLL_WORKING_MS = 1000;
+const POLL_WAITING_MS = 3000;
+
+// The x-vercel-id header reads "<edge>::<function region>::<id>" for function responses.
+function parseVercelId(value) {
+  if (!value) return { edge: "local", region: null };
+  const parts = value.split("::");
+  return { edge: parts[0], region: parts.length > 2 ? parts[1] : null };
+}
+
+async function callJSON(path, init = {}) {
+  const started = performance.now();
+  const res = await fetch(path, { ...init, headers: { Accept: "application/json", ...(init.headers || {}) } });
+  const text = await res.text();
+  const ms = performance.now() - started;
+  let body;
+  try { body = JSON.parse(text); } catch { body = text; }
+  return { status: res.status, ms, body, route: parseVercelId(res.headers.get("x-vercel-id")) };
+}
+
+function cell(row, content, { numeric = false, code = false, header = false } = {}) {
+  const el = document.createElement(header ? "th" : "td");
+  if (header) el.scope = "row";
+  if (numeric) el.className = "vbg-numeric";
+  if (code) {
+    el.append(mono(content));
+  } else {
+    el.append(content);
+  }
+  row.append(el);
+}
+
+function svgEl(name, attrs, text) {
+  const el = document.createElementNS(SVG, name);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+// Identifiers stay on one line, so a table scrolls on narrow screens instead of breaking them.
+function mono(text, tag = "span") {
+  const wrap = document.createElement("span");
+  wrap.className = "vbg-custom-nowrap";
+  const el = document.createElement(tag);
+  el.className = "vbg-mono";
+  el.textContent = text;
+  wrap.append(el);
+  return wrap;
+}
+
+// Text with inline code: parts are strings, or { code: "..." } for an identifier.
+function fragment(...parts) {
+  const f = document.createDocumentFragment();
+  for (const p of parts) f.append(typeof p === "string" ? document.createTextNode(p) : p.code !== undefined ? mono(p.code) : p);
+  return f;
+}
+
+const pad = (n, w = 2) => String(n).padStart(w, "0");
+const clock = (date) => `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
+const seconds = (s) => (s < 60 ? `${s.toFixed(1)} s` : `${Math.floor(s / 60)} min ${pad(Math.round(s % 60))} s`);
+const millis = (ms) => `${Math.round(ms)} ms`;
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const errorText = (r) => (typeof r.body === "object" && r.body && r.body.detail ? r.body.detail : `HTTP ${r.status}`);
+
+// ---- Run state: one object per run, everything on the page renders from it ----
+
+let run = null;
+
+function newRun(id, reopened) {
+  return {
+    id, reopened,
+    t0: performance.now(),
+    phase: "working",       // working | waiting | deciding | resumed | finishing | completed | failed
+    position: "write",      // start | write | review | end
+    queued: false,
+    drafts: 0,              // drafts written, from the graph's state
+    decided: 0,             // highest draft number you answered
+    hook: null,             // the awaiting_approval object currently shown
+    pausedTotal: 0,         // sum of server-measured pauses
+    polls: 0, pollMs: [],
+    log: [], spans: [],
+    taken: new Set(),
+    result: null, error: null,
+    lastChecked: null, timer: null,
+  };
+}
+
+const rel = (t) => (t - run.t0) / 1000;
+function closeSpan(t) {
+  const last = run.spans[run.spans.length - 1];
+  if (last && last.end === null) last.end = rel(t);
+}
+function openSpan(kind, t) {
+  closeSpan(t);
+  run.spans.push({ kind, start: rel(t), end: null });
+}
+function logEvent(event, request, evidence, t) {
+  run.log.push({ event, at: new Date(performance.timeOrigin + t), rel: rel(t), request, evidence });
+}
+
+let lastRoute = null;
+function noteRoute(r) {
+  lastRoute = r.route;
+  $("route-edge").textContent = r.route.edge;
+  $("route-region").textContent = r.route.region || "local";
+}
+
+// ---- Talking to the API ----
+
+async function startRun(topic) {
+  stopPolling();
+  $("start").disabled = true;
+  $("status").textContent = "Starting a run…";
+  let r;
+  try {
+    r = await callJSON("/api/runs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topic }) });
+  } catch (error) {
+    $("status").textContent = `Could not start a run: ${error.message}`;
+    $("start").disabled = false;
+    return;
+  }
+  if (r.status !== 200 || !r.body.run_id) {
+    $("status").textContent = `Could not start a run: ${errorText(r)}`;
+    $("start").disabled = false;
+    return;
+  }
+  run = newRun(r.body.run_id, false);
+  noteRoute(r);
+  history.replaceState(null, "", `?run=${encodeURIComponent(run.id)}`);
+  run.taken.add("start-write");
+  openSpan("working", run.t0);
+  logEvent("Run started", "POST /api/runs", ["Returned ", { code: run.id }, ` in ${millis(r.ms)}, before the graph ran`], run.t0);
+  render();
+  schedulePoll(400);
+}
+
+function reopenRun(id) {
+  run = newRun(id, true);
+  run.position = "start";
+  logEvent("Page opened on an existing run", "none", "History before this moment is in the event log, not in this page", run.t0);
+  render();
+  poll();
+}
+
+function stopPolling() {
+  if (run && run.timer) clearTimeout(run.timer);
+}
+
+function schedulePoll(delay) {
+  stopPolling();
+  run.timer = setTimeout(poll, delay);
+}
+
+async function poll() {
+  if (!run || run.phase === "completed" || run.phase === "failed") return;
+  if (document.hidden) return; // Resumes on visibilitychange.
+  const current = run;
+  let r;
+  try {
+    r = await callJSON(`/api/runs/${encodeURIComponent(current.id)}`);
+  } catch (error) {
+    if (current !== run) return;
+    $("status-detail").textContent = `A status check failed (${error.message}). Trying again.`;
+    schedulePoll(POLL_WAITING_MS);
+    return;
+  }
+  if (current !== run) return; // A newer run replaced this one.
+  if (run.phase === "deciding") return; // decide() polls again once its answer lands.
+  const t = performance.now();
+  run.polls += 1;
+  run.pollMs.push(r.ms);
+  run.lastChecked = new Date();
+  noteRoute(r);
+  if (r.status !== 200 || typeof r.body !== "object") {
+    if (run.reopened && run.polls === 1) {
+      run.phase = "failed";
+      run.error = `This run could not be loaded: ${errorText(r)}`;
+      logEvent("Run not found", "GET /api/runs/{id}", run.error, t);
+      render();
+      return;
+    }
+    $("status-detail").textContent = `A status check returned ${errorText(r)}. Trying again.`;
+    schedulePoll(POLL_WAITING_MS);
+    return;
+  }
+  applySnapshot(r.body, t);
+  render();
+  if (run.phase !== "completed" && run.phase !== "failed") {
+    schedulePoll(run.phase === "waiting" ? POLL_WAITING_MS : POLL_WORKING_MS);
+  }
+}
+
+function inferEdges(drafts, finished) {
+  // For a reopened run: the graph must have taken these edges to get here.
+  run.taken.add("start-write");
+  if (drafts >= 1) run.taken.add("write-review");
+  if (drafts >= 2) run.taken.add("review-write");
+  if (finished) run.taken.add("review-end");
+}
+
+function applySnapshot(body, t) {
+  const via = "GET /api/runs/{id}";
+  const first = run.reopened && run.spans.length === 0;
+  if (body.status === "completed") {
+    if (run.phase === "waiting") {
+      logEvent(`Draft ${run.hook.draft_number} approved outside this page`, via, "The run finished without an answer from this page", t);
+    }
+    closeSpan(t);
+    run.result = body.result || {};
+    run.drafts = run.result.drafts ?? run.drafts;
+    if (run.result.topic) $("topic").value = run.result.topic;
+    if (first) inferEdges(run.drafts, true);
+    run.taken.add("review-end");
+    run.position = "end";
+    run.phase = "completed";
+    logEvent(first ? "Run was already completed" : "Run completed", via, `Returned the approved draft, ${plural(run.drafts, "draft")} in total`, t);
+    return;
+  }
+  if (body.status === "failed" || body.status === "cancelled") {
+    closeSpan(t);
+    run.phase = "failed";
+    run.error = body.error || `The run was ${body.status}.`;
+    logEvent(body.status === "failed" ? "Run failed" : "Run cancelled", via, run.error, t);
+    return;
+  }
+  run.queued = body.status === "pending";
+  const hook = body.awaiting_approval;
+  const open = hook && hook.draft_number > run.decided;
+  if (run.phase === "waiting" && (!open || hook.paused_at !== run.hook.paused_at)) {
+    // The hook this page showed was answered from another tab or client.
+    run.decided = run.hook.draft_number;
+    run.phase = "resumed";
+    run.position = "review";
+    openSpan("working", t);
+    logEvent(`Draft ${run.decided} answered outside this page`, via, "The hook is gone or replaced, so the run resumed without this page", t);
+  }
+  if (run.phase === "resumed" && open) run.taken.add("review-write");
+  if (open) {
+    const isNew = !run.hook || run.hook.paused_at !== hook.paused_at;
+    run.hook = hook;
+    run.drafts = Math.max(run.drafts, hook.draft_number);
+    run.position = "review";
+    run.phase = "waiting";
+    if (first) inferEdges(hook.draft_number, false);
+    run.taken.add("write-review");
+    if (isNew) {
+      openSpan("waiting", t);
+      logEvent(first ? `Run was already paused on draft ${hook.draft_number}` : `Draft ${hook.draft_number} ready, run paused`, via,
+        `Hook created at ${clock(new Date(hook.paused_at))} by the server's clock`, t);
+    }
+    return;
+  }
+  // Still working: queued, writing a draft, or finishing after an approval.
+  if (first) {
+    run.taken.add("start-write");
+    run.position = run.queued ? "start" : "write";
+    openSpan("working", t);
+    logEvent(run.queued ? "Run was queued" : "Run was already writing a draft", via, `Status ${body.status}, no hook open`, t);
+  } else if (run.phase === "working" && !run.queued) {
+    run.position = "write";
+  }
+}
+
+async function decide(approved) {
+  if (!run || run.phase !== "waiting") return;
+  const feedback = $("feedback").value.trim();
+  $("feedback-error").hidden = approved || feedback.length > 0;
+  if (!approved && !feedback) { $("feedback").focus(); return; }
+  const current = run;
+  const draft = run.hook.draft_number;
+  stopPolling();
+  run.phase = "deciding";
+  render();
+  const sent = performance.now();
+  let r;
+  try {
+    r = await callJSON(`/api/runs/${encodeURIComponent(run.id)}/approve`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(approved ? { approved: true } : { approved: false, feedback }),
+    });
+  } catch (error) {
+    if (current !== run) return;
+    run.phase = "waiting";
+    render();
+    $("status-detail").textContent = `Your answer was not sent (${error.message}). The run is still waiting.`;
+    return;
+  }
+  if (current !== run) return;
+  noteRoute(r);
+  const via = "POST /api/runs/{id}/approve";
+  if (r.status === 409) {
+    run.decided = draft;
+    run.phase = "resumed";
+    run.position = "review";
+    logEvent(`Answer for draft ${draft} refused`, via, "409: the run was no longer waiting, so it was answered somewhere else first", sent);
+  } else if (r.status !== 200) {
+    run.phase = "waiting";
+    render();
+    $("status-detail").textContent = `Your answer was refused: ${errorText(r)}. The run is still waiting.`;
+    return;
+  } else {
+    run.decided = draft;
+    run.pausedTotal += r.body.paused_s;
+    openSpan("working", sent);
+    const evidence = `Paused ${seconds(r.body.paused_s)} on the hook by the server's measure; answered in ${millis(r.ms)}`;
+    if (approved) {
+      run.taken.add("review-end");
+      run.position = "end";
+      run.phase = "finishing";
+      logEvent(`Draft ${draft} approved`, via, evidence, sent);
+    } else {
+      run.taken.add("review-write");
+      run.position = "write";
+      run.phase = "working";
+      logEvent(`Feedback sent on draft ${draft}`, via, evidence, sent);
+    }
+  }
+  render();
+  schedulePoll(400);
+}
+
+// ---- Rendering ----
+
+const LAYOUTS = {
+  wide: {
+    w: 1000, h: 196,
+    start: { cx: 70, cy: 60, label: { x: 70, y: 96, anchor: "middle" } },
+    end: { cx: 930, cy: 60, label: { x: 930, y: 98, anchor: "middle" } },
+    write: { x: 170, y: 16, w: 250, h: 88 },
+    review: { x: 580, y: 16, w: 250, h: 88 },
+    edges: {
+      "start-write": { d: "M80 60 H168", head: [168, 60, "right"] },
+      "write-review": { d: "M420 60 H578", head: [578, 60, "right"], label: [{ x: 499, y: 50, anchor: "middle", text: "draft" }] },
+      "review-end": { d: "M830 60 H916", head: [916, 60, "right"], label: [{ x: 873, y: 50, anchor: "middle", text: "approved" }] },
+      "review-write": { d: "M705 104 V154 H295 V106", head: [295, 106, "up"], label: [{ x: 500, y: 178, anchor: "middle", text: "rejected: revise with your feedback" }] },
+    },
+  },
+  medium: {
+    w: 760, h: 196,
+    start: { cx: 24, cy: 60, label: { x: 24, y: 96, anchor: "middle" } },
+    end: { cx: 730, cy: 60, label: { x: 752, y: 98, anchor: "end" } },
+    write: { x: 70, y: 16, w: 240, h: 88 },
+    review: { x: 410, y: 16, w: 240, h: 88 },
+    edges: {
+      "start-write": { d: "M34 60 H68", head: [68, 60, "right"] },
+      "write-review": { d: "M310 60 H408", head: [408, 60, "right"], label: [{ x: 359, y: 50, anchor: "middle", text: "draft" }] },
+      "review-end": { d: "M650 60 H716", head: [716, 60, "right"], label: [{ x: 683, y: 50, anchor: "middle", text: "approved" }] },
+      "review-write": { d: "M530 104 V154 H190 V106", head: [190, 106, "up"], label: [{ x: 360, y: 178, anchor: "middle", text: "rejected: revise with your feedback" }] },
+    },
+  },
+  narrow: {
+    w: 360, h: 450,
+    start: { cx: 116, cy: 22, label: { x: 134, y: 26, anchor: "start" } },
+    end: { cx: 116, cy: 420, label: { x: 138, y: 424, anchor: "start" } },
+    write: { x: 16, y: 62, w: 200, h: 88 },
+    review: { x: 16, y: 246, w: 200, h: 88 },
+    edges: {
+      "start-write": { d: "M116 32 V60", head: [116, 60, "down"] },
+      "write-review": { d: "M116 150 V244", head: [116, 244, "down"], label: [{ x: 126, y: 202, anchor: "start", text: "draft" }] },
+      "review-end": { d: "M116 334 V406", head: [116, 406, "down"], label: [{ x: 126, y: 374, anchor: "start", text: "approved" }] },
+      "review-write": { d: "M216 290 H262 V106 H218", head: [218, 106, "left"], label: [
+        { x: 272, y: 186, anchor: "start", text: "rejected:" },
+        { x: 272, y: 204, anchor: "start", text: "revise with" },
+        { x: 272, y: 222, anchor: "start", text: "feedback" },
+      ] },
+    },
+  },
+};
+
+function arrowHead(x, y, dir) {
+  const s = 7;
+  const shapes = {
+    right: `M${x} ${y} L${x - s * 1.4} ${y - s} L${x - s * 1.4} ${y + s} Z`,
+    left: `M${x} ${y} L${x + s * 1.4} ${y - s} L${x + s * 1.4} ${y + s} Z`,
+    up: `M${x} ${y} L${x - s} ${y + s * 1.4} L${x + s} ${y + s * 1.4} Z`,
+    down: `M${x} ${y} L${x - s} ${y - s * 1.4} L${x + s} ${y - s * 1.4} Z`,
+  };
+  return shapes[dir];
+}
+
+function nodeView(name) {
+  // Returns [data-state, last line of text] for a node, from the run state.
+  if (!run) return ["idle", ""];
+  const p = run.phase, here = run.position === name;
+  if (name === "start") return here && run.queued ? ["active", "queued"] : ["idle", ""];
+  if (name === "write") {
+    if (here && p === "failed") return ["failed", "failed"];
+    if (here && (p === "working")) return ["active", run.reopened && !run.drafts ? "writing a draft" : `writing draft ${run.decided + 1}`];
+    return ["idle", run.drafts ? plural(run.drafts, "draft") + " written" : ""];
+  }
+  if (name === "review") {
+    if (here && p === "failed") return ["failed", "failed"];
+    if (here && p === "waiting") return ["waiting", "waiting for you"];
+    if (here && p === "deciding") return ["active", "sending your answer"];
+    if (p === "resumed") return ["active", "answered elsewhere"];
+    return ["idle", run.decided ? plural(run.decided, "answer") + " received" : ""];
+  }
+  if (name === "end") {
+    if (p === "completed") return ["done", "approved"];
+    if (p === "finishing") return ["active", "finishing"];
+    if (here && p === "failed") return ["failed", "failed"];
+    return ["idle", ""];
+  }
+  return ["idle", ""];
+}
+
+// Pick the layout from the rendered width, so SVG text stays near its real size.
+const widthOf = (el) => el.getBoundingClientRect().width || 1000;
+
+function drawGraph() {
+  const svg = $("graph-svg");
+  const width = widthOf(svg);
+  const L = width < 600 ? LAYOUTS.narrow : width < 960 ? LAYOUTS.medium : LAYOUTS.wide;
+  svg.setAttribute("viewBox", `0 0 ${L.w} ${L.h}`);
+  svg.querySelectorAll(":scope > :not(desc)").forEach((el) => el.remove());
+  const taken = run ? run.taken : new Set();
+  for (const [key, edge] of Object.entries(L.edges)) {
+    const attrs = taken.has(key) ? { "data-taken": "" } : {};
+    svg.append(svgEl("path", { class: "vbg-viz-edge", d: edge.d, ...attrs }));
+    svg.append(svgEl("path", { class: "vbg-viz-head", d: arrowHead(...edge.head), ...attrs }));
+    for (const l of edge.label || []) {
+      svg.append(svgEl("text", { class: "vbg-chart-annotation", x: l.x, y: l.y, "text-anchor": l.anchor, fill: "currentColor" }, l.text));
+    }
+  }
+  const nodes = { write: "LLM call, a durable step", review: "Workflow hook, waits for you" };
+  for (const [name, role] of Object.entries(nodes)) {
+    const box = L[name];
+    const [state, line] = nodeView(name);
+    const cx = box.x + box.w / 2;
+    svg.append(svgEl("rect", { class: "vbg-viz-node", x: box.x, y: box.y, width: box.w, height: box.h, rx: 6, "data-state": state }));
+    svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: cx, y: box.y + 28, "text-anchor": "middle", fill: "currentColor" }, name));
+    svg.append(svgEl("text", { class: "vbg-chart-annotation", x: cx, y: box.y + 50, "text-anchor": "middle", fill: "currentColor" }, role));
+    if (line) svg.append(svgEl("text", { class: "vbg-chart-value", x: cx, y: box.y + 74, "text-anchor": "middle", fill: "currentColor" }, line));
+  }
+  const [startState, startLine] = nodeView("start");
+  svg.append(svgEl("circle", { class: startState === "idle" ? "vbg-viz-terminal" : "vbg-viz-node", cx: L.start.cx, cy: L.start.cy, r: 10, "data-state": startState }));
+  svg.append(svgEl("text", { class: "vbg-chart-annotation", x: L.start.label.x, y: L.start.label.y, "text-anchor": L.start.label.anchor, fill: "currentColor" }, startLine ? `start, ${startLine}` : "start"));
+  const [endState, endLine] = nodeView("end");
+  svg.append(svgEl("circle", { class: "vbg-viz-node", cx: L.end.cx, cy: L.end.cy, r: 12, "data-state": endState }));
+  svg.append(svgEl("circle", { class: "vbg-viz-terminal", cx: L.end.cx, cy: L.end.cy, r: 6 }));
+  svg.append(svgEl("text", { class: "vbg-chart-annotation", x: L.end.label.x, y: L.end.label.y, "text-anchor": L.end.label.anchor, fill: "currentColor" }, endLine ? `end, ${endLine}` : "end"));
+
+  const where = !run ? "No run yet."
+    : run.phase === "waiting" ? `The graph is paused at review on draft ${run.hook.draft_number}, waiting for you.`
+    : run.phase === "completed" ? `The graph reached end after ${plural(run.drafts, "draft")}.`
+    : run.phase === "failed" ? "The run failed."
+    : run.phase === "resumed" ? "The draft was answered outside this page and the graph is moving on."
+    : run.position === "end" ? "The draft was approved and the graph is going to end."
+    : run.position === "start" ? "The run is queued."
+    : "The graph is in write, waiting for the LLM step.";
+  $("graph-desc").textContent = `The graph: start, then write, then review, then end. Review loops back to write when a draft is rejected. ${where}`;
+}
+
+function drawTimeline() {
+  const svg = $("timeline-svg");
+  const W = Math.max(300, Math.round(widthOf(svg))), H = 150;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.querySelectorAll(":scope > :not(desc)").forEach((el) => el.remove());
+  const live = run && run.phase !== "completed" && run.phase !== "failed";
+  const nowRel = run ? rel(performance.now()) : 0;
+  const spans = run ? run.spans.map((s) => ({ ...s, end: s.end === null ? (live ? nowRel : s.start) : s.end })) : [];
+  const lastEnd = Math.max(0, ...spans.map((s) => s.end));
+  const total = live ? Math.max(10, lastEnd) : Math.max(1, lastEnd);
+  const steps = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600];
+  const step = steps.find((s) => total / s <= Math.max(3, Math.floor(W / 120))) || 7200;
+  const x = (sec) => (sec / total) * W;
+  const lanes = [
+    { kind: "working", label: "Graph working", y: 0 },
+    { kind: "waiting", label: "Paused on the hook, waiting for you", y: 52 },
+  ];
+  for (const lane of lanes) {
+    svg.append(svgEl("text", { class: "vbg-chart-direct-label", x: 0, y: lane.y + 14, fill: "currentColor" }, lane.label));
+    for (const s of spans.filter((sp) => sp.kind === lane.kind)) {
+      svg.append(svgEl("rect", { class: "vbg-series-fill vbg-series-1", x: x(s.start), y: lane.y + 22, width: Math.max(2, x(s.end) - x(s.start)), height: 16, rx: 2, fill: "currentColor" }));
+    }
+  }
+  svg.append(svgEl("line", { class: "vbg-chart-axis", x1: 0, x2: W, y1: 116, y2: 116, stroke: "currentColor" }));
+  for (let s = 0; s <= total + 1e-9; s += step) {
+    const anchor = s === 0 ? "start" : x(s) > W - 30 ? "end" : "middle";
+    svg.append(svgEl("line", { class: "vbg-chart-gridline", x1: x(s), x2: x(s), y1: 116, y2: 122, stroke: "currentColor" }));
+    svg.append(svgEl("text", { class: "vbg-chart-value", x: x(s), y: 140, "text-anchor": anchor, fill: "currentColor" }, s >= 60 && s % 60 === 0 ? `${s / 60} min` : `${s} s`));
+  }
+  const sum = (kind) => spans.filter((s) => s.kind === kind).reduce((a, s) => a + (s.end - s.start), 0);
+  $("timeline-desc").textContent = run
+    ? `Over ${seconds(nowRel)} seen from this browser, the graph worked for ${seconds(sum("working"))} and was paused waiting for you for ${seconds(sum("waiting"))}.`
+    : "No run yet.";
+  return sum("working");
+}
+
+function drawLog() {
+  const body = $("log-rows");
+  body.replaceChildren();
+  if (!run) {
+    const row = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 5;
+    td.textContent = "Start a run to record its state changes.";
+    row.append(td);
+    body.append(row);
+    return;
+  }
+  for (const e of run.log) {
+    const row = document.createElement("tr");
+    cell(row, e.event, { header: true });
+    cell(row, clock(e.at), { code: true });
+    cell(row, seconds(e.rel), { numeric: true });
+    if (e.request === "none") cell(row, "None");
+    else cell(row, e.request, { code: true });
+    cell(row, Array.isArray(e.evidence) ? fragment(...e.evidence) : e.evidence);
+    body.append(row);
+  }
+}
+
+function drawStatus() {
+  const s = $("status"), d = $("status-detail");
+  if (!run) return;
+  const checked = run.lastChecked ? `Last checked at ${clock(run.lastChecked)}, ${plural(run.polls, "check")} so far.` : "";
+  switch (run.phase) {
+    case "working":
+      s.textContent = run.queued ? "The run is queued for the workflow function." : run.decided ? `Back in write, revising draft ${run.decided} with your feedback.` : "In write: the LLM step is writing the first draft.";
+      d.textContent = `The write node calls a durable step; Workflow runs it as its own invocation and records the text. ${checked}`;
+      break;
+    case "waiting":
+      s.textContent = `Paused at review on a Workflow hook, waiting for you.`;
+      d.textContent = `The hook was created at ${clock(new Date(run.hook.paused_at))} by the server's clock. ${checked} The run is still there each time.`;
+      break;
+    case "deciding":
+      s.textContent = "Sending your answer to the hook…";
+      d.textContent = checked;
+      break;
+    case "resumed":
+      s.textContent = `Draft ${run.decided} was answered outside this page.`;
+      d.textContent = `The run resumed without this page. Waiting to see whether it revises or ends. ${checked}`;
+      break;
+    case "finishing":
+      s.textContent = "Approved. The router sent the graph to end.";
+      d.textContent = `Waiting for the run to record its result. ${checked}`;
+      break;
+    case "completed":
+      s.textContent = `Completed after ${plural(run.drafts, "draft")}.`;
+      d.textContent = `The workflow returned the approved draft. ${checked}`;
+      break;
+    case "failed":
+      s.textContent = "The run failed.";
+      d.textContent = run.error || "";
+      break;
+  }
+}
+
+function drawReview() {
+  const title = $("review-title"), draft = $("draft");
+  const waiting = run && run.phase === "waiting";
+  $("approve").disabled = !waiting;
+  $("reject").disabled = !waiting;
+  $("feedback").disabled = !waiting;
+  const busy = run && !["completed", "failed"].includes(run.phase);
+  $("start").disabled = !!busy;
+  $("start").textContent = run && !busy ? "Start another run" : "Start a run";
+  if (!run) return;
+  switch (run.phase) {
+    case "working":
+      title.textContent = run.drafts ? `Writing draft ${run.decided + 1}` : "Writing the first draft";
+      draft.textContent = `Draft ${run.decided + 1} appears here when the graph pauses at review.`;
+      break;
+    case "waiting":
+      title.textContent = `Draft ${run.hook.draft_number} is waiting for your review`;
+      draft.textContent = run.hook.draft;
+      break;
+    case "deciding":
+      title.textContent = `Sending your answer on draft ${run.hook.draft_number}`;
+      break;
+    case "resumed":
+      title.textContent = `Draft ${run.decided} was answered elsewhere`;
+      break;
+    case "finishing":
+      title.textContent = `Draft ${run.decided} approved`;
+      break;
+    case "completed":
+      title.textContent = `Approved after ${plural(run.drafts, "draft")}`;
+      draft.textContent = run.result.draft ?? "";
+      break;
+    case "failed":
+      title.textContent = "No approved draft";
+      draft.textContent = "The run ended without an approved draft. The reason is above.";
+      break;
+  }
+}
+
+function drawStats(working) {
+  $("stat-drafts").textContent = run ? String(run.drafts) : "0";
+  $("stat-paused").textContent = seconds(run ? run.pausedTotal : 0);
+  $("stat-paused-detail").textContent = run && run.phase === "waiting"
+    ? "Server-measured so far; the current pause is still open"
+    : "Measured on the server, hook creation to your answer";
+  $("stat-working").textContent = seconds(working);
+  $("stat-polls").textContent = run ? String(run.polls) : "0";
+  if (run && run.pollMs.length) {
+    const sorted = [...run.pollMs].sort((a, b) => a - b);
+    $("stat-polls-detail").textContent = `Each one a separate request, median ${millis(sorted[Math.floor(sorted.length / 2)])}`;
+  }
+  const line = $("run-link-line");
+  if (run) {
+    const link = document.createElement("a");
+    link.href = `?run=${encodeURIComponent(run.id)}`;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = "Open this run in another tab";
+    line.replaceChildren(fragment("Run ", mono(run.id, "code"), ". ", link, ": it loads from the Workflow event log, not from this page."));
+  }
+}
+
+let logLength = -1;
+function render() {
+  drawGraph();
+  const working = drawTimeline();
+  drawStatus();
+  drawReview();
+  drawStats(working);
+  if (!run || run.log.length !== logLength) {
+    drawLog();
+    logLength = run ? run.log.length : -1;
+  }
+}
+
+// ---- Wiring ----
+
+$("start-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const topic = $("topic").value.trim();
+  if (!topic) { $("topic").focus(); return; }
+  logLength = -1;
+  startRun(topic);
+});
+$("approve").addEventListener("click", () => decide(true));
+$("reject").addEventListener("click", () => decide(false));
+$("feedback").addEventListener("input", () => { $("feedback-error").hidden = true; });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && run) poll(); });
+let lastWidth = 0;
+new ResizeObserver(([entry]) => {
+  const width = Math.round(entry.contentRect.width);
+  if (width !== lastWidth) { lastWidth = width; drawGraph(); drawTimeline(); }
+}).observe($("main"));
+
+const reopenId = new URLSearchParams(location.search).get("run");
+if (reopenId && /^wrun_[0-9A-Z]+$/.test(reopenId)) reopenRun(reopenId);
+else render();
+</script>
+</body>
+</html>

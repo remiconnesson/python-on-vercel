@@ -4,10 +4,13 @@ A LangGraph graph runs inside a durable Vercel Workflow, written with the Python
 
 There's no official LangGraph integration for Vercel Workflow, and no Workflow-backed LangGraph checkpointer. This demo uses the plain SDKs. [RESEARCH.md](./RESEARCH.md) covers what exists and why the demo is built this way.
 
+Open the deployment (or `http://localhost:8000`) in a browser to get the explainer page. You start a run, watch where the graph is, approve the draft or send feedback, and see a log of every state change with the pause lengths the server measured. Browsers that ask for `text/html` at `/` get `index.html`; everything else gets the JSON listing. `main.py` reads the file once at import, so restart the server after editing it.
+
 ```
 07-langgraph-workflow/
 ├── agent.py         # Workflows registry, LLM step, LangGraph graph, hook model, run_agent workflow
 ├── main.py          # FastAPI: GET /, POST /api/runs, GET /api/runs/{id}, POST /api/runs/{id}/approve
+├── index.html       # Visual explainer served at GET / to browsers (vanilla JS, no build step)
 ├── pyproject.toml   # deps, [tool.vercel] web entrypoint, [[tool.vercel.workflows]] registry entrypoint
 ├── uv.lock          # locked deps (uv lock)
 ├── .gitignore       # ignores .venv and .workflow-data (local run storage)
@@ -18,7 +21,7 @@ There's no official LangGraph integration for Vercel Workflow, and no Workflow-b
 
 - **The workflow body runs the graph.** `run_agent` calls `graph.ainvoke(...)`. Workflow re-runs the body from the start every time the run wakes up, after a step finishes or a hook receives a payload. Steps and hooks that already completed return their recorded values right away, so LangGraph is back at the same point in a few milliseconds.
 - **Side effects run in steps.** `generate()` (ChatOpenAI → AI Gateway) is a `@wf.step`. It runs as its own invocation in the regular interpreter, gets 3 retries, and its return value is stored in the run's event log.
-- **The human-in-the-loop pause is a Workflow hook, not LangGraph's `interrupt()`.** `Approval.wait(token=...)` suspends the run, and `POST /api/runs/{id}/approve` calls `Approval(...).resume(token)`. The hook's `metadata` carries the draft, so `GET /api/runs/{id}` can show it while the run waits.
+- **The human-in-the-loop pause is a Workflow hook, not LangGraph's `interrupt()`.** `Approval.wait(token=...)` suspends the run, and `POST /api/runs/{id}/approve` calls `Approval(...).resume(token)`. The hook's `metadata` carries the draft and its number, so `GET /api/runs/{id}` can show them while the run waits.
 - **There's no LangGraph checkpointer.** The Workflow event log is the persistence layer.
 
 ## Run locally
@@ -40,16 +43,16 @@ curl $BASE/                                                       # endpoint lis
 curl -X POST $BASE/api/runs -H 'content-type: application/json' \
   -d '{"topic": "a solar-powered kettle"}'                        # -> {"run_id": "wrun_..."}
 curl $BASE/api/runs/wrun_XXXX
-# -> {"status": "running", "awaiting_approval": {"draft": "..."}}
+# -> {"status": "running", "awaiting_approval": {"draft": "...", "draft_number": 1, "paused_at": "2026-10-08T14:25:53.237000+00:00"}}
 curl -X POST $BASE/api/runs/wrun_XXXX/approve -H 'content-type: application/json' \
   -d '{"approved": false, "feedback": "Mention it boils in 3 minutes"}'   # loops back to `write`
 curl -X POST $BASE/api/runs/wrun_XXXX/approve -H 'content-type: application/json' \
-  -d '{"approved": true}'                                         # -> {"ok": true}
+  -d '{"approved": true}'                                         # -> {"ok": true, "paused_s": 12.345}
 curl $BASE/api/runs/wrun_XXXX
-# -> {"status": "completed", "result": {"topic": "...", "draft": "..."}}
+# -> {"status": "completed", "result": {"topic": "...", "draft": "...", "drafts": 2}}
 ```
 
-`approve` returns 409 when the run isn't waiting for review.
+`awaiting_approval` is the hook's metadata (the draft and its number, counted in the graph state) plus `paused_at`, the time Workflow created the hook. `approve` returns `paused_s`, how long the run sat on that hook, measured on the server. It returns 409 when the run isn't waiting for review.
 
 ## Deploy notes
 
