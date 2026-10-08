@@ -10,6 +10,7 @@ A FastAPI app that Vercel deploys **from a Dockerfile**. Vercel finds `Dockerfil
 08-containers/
 ├── Dockerfile.vercel   # what Vercel builds: python:3.14-slim + uv + apt figlet, uvicorn on $PORT (default 80)
 ├── main.py             # FastAPI app: GET / (environment info) and GET /figlet (shells out to the apt binary)
+├── index.html          # the visual explainer served at / to browsers (copied into the image)
 ├── pyproject.toml      # uv project: fastapi + uvicorn
 ├── uv.lock             # pinned dependency versions; the image installs exactly these (uv sync --frozen)
 └── vercel.json         # pins the "Container" framework preset (see below)
@@ -31,6 +32,8 @@ Without Docker (quick iteration; `/figlet` only works if `figlet` is on your PAT
 uv run uvicorn main:app --reload
 ```
 
+Outside the container, `/` reports your machine (no Debian `/etc/os-release`, a PID other than 1, your CPU architecture) and `/figlet` answers 503 unless `figlet` is installed. The explainer page says so too.
+
 `vercel dev` can also build and run the container locally (needs the Docker daemon).
 
 ## Deploy
@@ -49,7 +52,9 @@ The image is built only when the project's framework preset is `container` (Verc
 ```bash
 URL=https://<your-deployment>.vercel.app
 
-curl $URL/                        # JSON: image OS (Debian), Python version, arch (x86_64 on Vercel), port
+curl $URL/                        # JSON: image OS (Debian), Python, arch (x86_64 on Vercel), port, PID, instance ID, figlet path
 curl "$URL/figlet?text=Vercel"    # ASCII art rendered by the apt-installed figlet binary
 curl -I $URL/docs                 # FastAPI's interactive docs
 ```
+
+Open the deployment in a browser for a live explainer: it reads the container's OS, figlet package, process ID and architecture and ties each to its line in `Dockerfile.vercel`, renders your text with figlet, and sends repeated requests to show Fluid compute reusing one container. `curl` on `/` still gets JSON. In the container, `pid` is `1` because the `CMD` `exec`s uvicorn (it replaces the shell as the first process), and `instance_id` with `instance_started_at` stays the same for as long as the instance stays warm.

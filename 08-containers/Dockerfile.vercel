@@ -20,7 +20,9 @@ ENV UV_COMPILE_BYTECODE=1
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-cache
 
-COPY main.py ./
+# index.html is the explainer page main.py serves at / to browsers; main.py
+# reads it at import, so the app won't start without it.
+COPY main.py index.html ./
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1

@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Containers on Vercel</title>
+<meta name="description" content="A FastAPI app that Vercel builds from Dockerfile.vercel and runs as a container image on Vercel Functions, explained and tested live.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" referrerpolicy="no-referrer">
+<link href="https://vercel.com/geist/vercel-brand.css" rel="stylesheet">
+<style>
+  /* Page-owned layout only. Everything else comes from the published foundation. */
+  .vbg-custom-route { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--vbg-space-6); }
+  ol.vbg-custom-route > li, ol.vbg-custom-route > li + li { margin: 0; min-width: 0; display: grid; gap: var(--vbg-space-2); align-content: start; padding-top: var(--vbg-space-4); border-top: 1px solid var(--vbg-border-strong); }
+  .vbg-custom-route > li > * { margin: 0; }
+  .vbg-custom-block { margin: 0; padding: var(--vbg-space-4); background: var(--vbg-surface-secondary); border: 1px solid var(--vbg-border-subtle); border-radius: var(--vbg-radius-small); font-size: var(--vbg-type-compact); line-height: var(--vbg-leading-compact); white-space: pre; overflow-x: auto; }
+  .vbg-custom-art { min-height: 10rem; font-size: var(--vbg-type-lede); }
+  .vbg-custom-file { line-height: var(--vbg-leading-body); }
+  .vbg-custom-nowrap { white-space: nowrap; }
+  .vbg-custom-art.vbg-custom-wrap { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--vbg-type-compact); }
+  .vbg-custom-controls { display: flex; flex-wrap: wrap; gap: var(--vbg-space-3); align-items: end; }
+  .vbg-custom-controls > * { margin: 0; }
+  .vbg-custom-grow { flex: 1 1 16rem; max-width: 28rem; min-width: 0; }
+  .vbg-custom-form { display: grid; gap: var(--vbg-space-2); min-width: 0; }
+  .vbg-custom-form > * { margin: 0; }
+  .vbg-custom-tool { display: grid; gap: var(--vbg-space-4); min-width: 0; }
+  .vbg-custom-tool > * { margin: 0; min-width: 0; }
+  .vbg-custom-measure { max-width: 68ch; }
+  .vbg-custom-measure > * { margin: 0; }
+  .vbg-custom-pair { display: grid; gap: var(--vbg-space-3); align-content: start; min-width: 0; }
+  .vbg-custom-pair > * { margin: 0; min-width: 0; }
+  .vbg-custom-terms { margin: 0; display: grid; gap: var(--vbg-space-4); align-content: start; min-width: 0; }
+  .vbg-custom-terms > div { display: grid; gap: var(--vbg-space-1); min-width: 0; }
+  .vbg-custom-terms dt, .vbg-custom-terms dd { margin: 0; }
+  @media (max-width: 1000px) {
+    .vbg-custom-route { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 720px) {
+    .vbg-custom-route { grid-template-columns: minmax(0, 1fr); }
+    .vbg-custom-art { font-size: var(--vbg-type-compact); }
+  }
+</style>
+</head>
+<body class="vbg-report">
+<div class="vbg-shell">
+  <a class="vbg-skip-link" href="#main">Skip to content</a>
+  <header class="vbg-header">
+    <div class="vbg-masthead">
+      <span class="vbg-identity"><span class="vbg-wordmark" role="img" aria-label="Vercel"></span></span>
+      <div class="vbg-document-meta">
+        <span class="vbg-context">Python on Vercel, demo 8 of 8</span>
+        <span class="vbg-state">Beta feature</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="vbg-opening" aria-labelledby="title">
+      <div class="vbg-opening-claim">
+        <h1 class="vbg-title" id="title">Vercel built this app’s Dockerfile and runs the image as a function</h1>
+        <div class="vbg-custom-measure"><p class="vbg-lede">This page is served by a FastAPI app inside a container. Vercel found <code class="vbg-mono">Dockerfile.vercel</code>, built the image, pushed it to its own container registry, and runs it as a Vercel Function. The values below are read from inside the running container, and each one traces back to a line of the Dockerfile.</p></div>
+      </div>
+      <div class="vbg-opening-proof">
+        <div class="vbg-stat-strip">
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Operating system</p>
+            <p class="vbg-stat-value" id="stat-os">…</p>
+            <p class="vbg-stat-detail" id="stat-os-detail">Expected from <span class="vbg-custom-nowrap"><code class="vbg-mono">python:3.14-slim</code></span></p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">figlet binary</p>
+            <p class="vbg-stat-value" id="stat-figlet">…</p>
+            <p class="vbg-stat-detail" id="stat-figlet-detail">Expected from <span class="vbg-custom-nowrap"><code class="vbg-mono">apt-get</code></span> in the image</p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Process ID</p>
+            <p class="vbg-stat-value" id="stat-pid">…</p>
+            <p class="vbg-stat-detail" id="stat-pid-detail">Expected from <span class="vbg-custom-nowrap"><code class="vbg-mono">exec</code></span> in <span class="vbg-custom-nowrap"><code class="vbg-mono">CMD</code></span></p>
+          </div>
+          <div class="vbg-stat">
+            <p class="vbg-stat-label">Architecture</p>
+            <p class="vbg-stat-value" id="stat-arch">…</p>
+            <p class="vbg-stat-detail" id="stat-arch-detail">Expected from the <span class="vbg-custom-nowrap"><code class="vbg-mono">linux/amd64</code></span> build</p>
+          </div>
+        </div>
+        <div class="vbg-custom-measure" id="local-note" hidden><p class="vbg-note">This server is not running in the container image. It is a local <code class="vbg-mono">uvicorn</code> process, so the values describe this machine. Deploy the folder, or build <code class="vbg-mono">Dockerfile.vercel</code> with Docker, to see the image’s own values.</p></div>
+        <p class="vbg-caption" id="opening-status" role="status">Asking the container for its details.</p>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="figlet-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="figlet-title">A system binary from the image renders your text</h2>
+        <p>figlet turns text into large letters made of ASCII characters. It is a Debian package, the kind of dependency a <code class="vbg-mono">pip</code> or <code class="vbg-mono">uv</code> install can’t add and the reason this app ships as a container. The Dockerfile installs it with <span class="vbg-custom-nowrap"><code class="vbg-mono">apt-get</code></span>, and <span class="vbg-custom-nowrap"><code class="vbg-mono">GET /figlet</code></span> runs it with <code class="vbg-mono">subprocess.run</code> on every request.</p>
+      </div>
+      <div class="vbg-span-12 vbg-custom-tool">
+        <form class="vbg-custom-form" id="figlet-form">
+          <div class="vbg-custom-controls">
+            <div class="vbg-field vbg-custom-grow">
+              <label class="vbg-label" for="figlet-text">Text to render</label>
+              <input id="figlet-text" value="Vercel" maxlength="40" autocomplete="off" spellcheck="false" aria-describedby="figlet-helper">
+            </div>
+            <button class="vbg-button" type="submit" id="figlet-run">Render with figlet</button>
+          </div>
+          <p class="vbg-helper" id="figlet-helper">Up to 40 characters, the most the endpoint passes to figlet.</p>
+        </form>
+        <pre class="vbg-custom-block vbg-custom-art vbg-mono" id="figlet-out" tabindex="0">…</pre>
+        <p class="vbg-caption" id="figlet-status" role="status">Rendering the default text.</p>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="reuse-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="reuse-title">Fluid compute keeps the container running between requests</h2>
+        <p>When the container starts, the app gives itself a random ID and notes the time. Fluid compute sends many requests to each running instance, so answers that carry the same ID and start time came from the same container and none of them waited for a cold start. Requests sent at the same time may be spread across more than one instance.</p>
+        <p>After 5 minutes without traffic in production, or 30 seconds in a preview, Vercel scales the instance in: it sends <code class="vbg-mono">SIGTERM</code>, allows 30 seconds to exit, and the next request starts a new container with a new ID. <span id="reuse-env"></span></p>
+      </div>
+      <div class="vbg-custom-controls">
+        <button class="vbg-button" id="reuse-seq" type="button">Send 10 requests in a row</button>
+        <button class="vbg-button" id="reuse-par" type="button">Send 10 requests at once</button>
+      </div>
+      <p class="vbg-heading-20" id="reuse-summary" role="status">No requests sent yet.</p>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Container instance that answered each request</caption>
+          <thead>
+            <tr>
+              <th scope="col">Request</th>
+              <th scope="col">Instance</th>
+              <th scope="col">Started at</th>
+              <th scope="col" class="vbg-numeric">Process ID</th>
+              <th scope="col" class="vbg-numeric">Instance uptime</th>
+              <th scope="col" class="vbg-numeric">Round trip</th>
+            </tr>
+          </thead>
+          <tbody id="reuse-rows">
+            <tr><td colspan="6">Send requests to see which container answers.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="how-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="how-title">What Vercel did with this folder</h2>
+        <p>The folder holds a FastAPI app with a <code class="vbg-mono">pyproject.toml</code>, which on its own would select Vercel’s Python runtime. <code class="vbg-mono">Dockerfile.vercel</code> wins: Vercel checks for the Container preset before any other framework, and <code class="vbg-mono">vercel.json</code> pins it, so Vercel built the image instead.</p>
+      </div>
+      <div class="vbg-span-12">
+        <ol class="vbg-custom-route">
+          <li>
+            <p class="vbg-label">Detect</p>
+            <p><span class="vbg-custom-nowrap"><code class="vbg-mono">Dockerfile.vercel</code></span> at the root selects the Container preset, and <span class="vbg-custom-nowrap"><code class="vbg-mono">vercel.json</code></span> pins it with <span class="vbg-custom-nowrap"><code class="vbg-mono">"framework": "container"</code></span>.</p>
+          </li>
+          <li>
+            <p class="vbg-label">Build</p>
+            <p>The <span class="vbg-custom-nowrap"><code class="vbg-mono">@vercel/container</code></span> builder builds the image for <span class="vbg-custom-nowrap"><code class="vbg-mono">linux/amd64</code></span> on each deployment, with this folder as the build context.</p>
+          </li>
+          <li>
+            <p class="vbg-label">Push</p>
+            <p>The image is pushed to Vercel Container Registry, Vercel’s own image registry, tagged with the first 12 characters of the commit SHA.</p>
+          </li>
+          <li>
+            <p class="vbg-label">Serve</p>
+            <p id="route-serve">One Vercel Function on Fluid compute receives every path and forwards it to the container on port 80, unless <span class="vbg-custom-nowrap"><code class="vbg-mono">PORT</code></span> is set.</p>
+          </li>
+        </ol>
+      </div>
+      <h3 class="vbg-heading-20">Five details in <code class="vbg-mono">Dockerfile.vercel</code> that this depends on</h3>
+      <div class="vbg-grid">
+        <div class="vbg-span-7 vbg-custom-pair">
+          <pre class="vbg-custom-block vbg-custom-file vbg-mono" tabindex="0" aria-label="Dockerfile.vercel without comments">FROM python:3.14-slim
+COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /bin/uv
+RUN apt-get update \
+    &amp;&amp; apt-get install -y --no-install-recommends figlet \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+ENV UV_COMPILE_BYTECODE=1
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-cache
+COPY main.py index.html ./
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1
+CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-80}"]</pre>
+          <p class="vbg-caption">The whole file with its comments removed.</p>
+        </div>
+        <dl class="vbg-span-5 vbg-custom-terms">
+          <div>
+            <dt><span class="vbg-custom-nowrap"><code class="vbg-mono">apt-get install figlet</code></span></dt>
+            <dd>Adds a system binary to the image. The native Python runtime only installs Python packages.</dd>
+          </div>
+          <div>
+            <dt><span class="vbg-custom-nowrap"><code class="vbg-mono">uv sync --frozen</code></span></dt>
+            <dd>Installs exactly the versions pinned in <code class="vbg-mono">uv.lock</code>, without resolving them again.</dd>
+          </div>
+          <div>
+            <dt><span class="vbg-custom-nowrap"><code class="vbg-mono">--host 0.0.0.0</code></span></dt>
+            <dd>Vercel connects from outside the container. A server bound to <code class="vbg-mono">127.0.0.1</code> never sees the request.</dd>
+          </div>
+          <div>
+            <dt><span class="vbg-custom-nowrap"><code class="vbg-mono">--port ${PORT:-80}</code></span></dt>
+            <dd>Vercel sends traffic to port 80 unless <code class="vbg-mono">PORT</code> is set in the project settings.</dd>
+          </div>
+          <div>
+            <dt><code class="vbg-mono">exec</code></dt>
+            <dd>Replaces the shell with uvicorn, so uvicorn is process 1 and receives <code class="vbg-mono">SIGTERM</code> when the instance scales in.</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="vbg-section" aria-labelledby="limits-title">
+      <div class="vbg-flow vbg-reading">
+        <h2 class="vbg-heading-24" id="limits-title">It is a beta, with standard function limits and a few gaps</h2>
+        <p>Container Images for Vercel Functions has been in beta on all plans since June 30, 2026. An image runs with the same limits and Active CPU pricing as any other Vercel Function, plus the constraints below.</p>
+      </div>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Limits and gaps for container images on Vercel Functions</caption>
+          <thead>
+            <tr><th scope="col">Topic</th><th scope="col">What applies</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Scale-in</th><td>After 5 minutes idle in production, 30 seconds in a preview, with <code class="vbg-mono">SIGTERM</code> and a 30 second grace period</td></tr>
+            <tr><th scope="row">Workloads</th><td>HTTP only: no background workers, no volumes and no persistent disk</td></tr>
+            <tr><th scope="row">Networking</th><td>No Secure Compute or Static IPs for container images yet</td></tr>
+            <tr><th scope="row">Duration</th><td>300 seconds by default, up to 800 seconds on Pro and Enterprise</td></tr>
+            <tr><th scope="row">Memory and bodies</th><td>Up to 2 GB of memory on Hobby and 4 GB on Pro and Enterprise; request and response bodies up to 4.5 MB</td></tr>
+            <tr><th scope="row">Image size</th><td>250 MB uncompressed for a standard function, up to 5 GB with Large Functions (beta); this image is about 200 MB</td></tr>
+            <tr><th scope="row">Image source</th><td>Built from a Dockerfile or pushed to Vercel Container Registry; not pulled from Docker Hub, GHCR or ECR</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3 class="vbg-heading-20">Endpoints</h3>
+      <div class="vbg-table-wrap">
+        <table>
+          <caption class="vbg-visually-hidden">Endpoints served by this app</caption>
+          <thead>
+            <tr><th scope="col">Endpoint</th><th scope="col">What it returns</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">GET /</code></span></th><td>This page for browsers, the container’s details as JSON for everything else</td></tr>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">GET /figlet?text=Vercel</code></span></th><td>figlet’s output for the first 40 characters, as plain text</td></tr>
+            <tr><th scope="row"><span class="vbg-custom-nowrap"><code class="vbg-mono">GET /docs</code></span></th><td>FastAPI’s generated OpenAPI docs</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vbg-flow vbg-reading">
+        <p>Reach for a container when the app needs something outside PyPI, like figlet here. Without that need, the native Python runtime runs the same kind of FastAPI app with no Dockerfile, as demo 1 shows.</p>
+        <ul class="vbg-sources">
+          <li><a href="https://vercel.com/docs/functions/container-images">Container Images for Vercel Functions</a></li>
+          <li><a href="https://vercel.com/changelog/bring-your-dockerfile-to-vercel-functions">Changelog: Bring your Dockerfile to Vercel Functions</a></li>
+          <li><a href="https://vercel.com/changelog/introducing-vcr-vercel-container-registry">Changelog: Introducing Vercel Container Registry</a></li>
+          <li><a href="https://vercel.com/kb/guide/vercel-docker-python-apps">Deploy Python apps on Vercel using Docker</a></li>
+          <li><a href="https://vercel.com/docs/fluid-compute">Fluid compute</a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vbg-footer">
+    <span class="vbg-logo" role="img" aria-label="Vercel"></span>
+    <span>Source: <code class="vbg-mono"><span class="vbg-custom-nowrap">python-on-vercel-demos/</span><span class="vbg-custom-nowrap">08-containers</span></code></span>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+// Inline code that never breaks inside an identifier, and plain mono text for large values.
+const code = (s) => `<span class="vbg-custom-nowrap"><code class="vbg-mono">${esc(s)}</code></span>`;
+const mono = (s) => `<span class="vbg-mono">${esc(s)}</span>`;
+
+// The x-vercel-id header reads "<edge>::<function region>::<id>" for function responses.
+function parseVercelId(value) {
+  if (!value) return { edge: "local", region: null };
+  const parts = value.split("::");
+  return { edge: parts[0], region: parts.length > 2 ? parts[1] : null };
+}
+
+async function callJSON(path, init = {}) {
+  const started = performance.now();
+  const res = await fetch(path, { ...init, headers: { Accept: "application/json", ...(init.headers || {}) } });
+  const ms = performance.now() - started;
+  const text = await res.text();
+  let body;
+  try { body = JSON.parse(text); } catch { body = text; }
+  return { status: res.status, ms, body, route: parseVercelId(res.headers.get("x-vercel-id")) };
+}
+
+function cell(row, text, { numeric = false, mono = false, header = false } = {}) {
+  const el = document.createElement(header ? "th" : "td");
+  if (header) el.scope = "row";
+  if (numeric) el.className = "vbg-numeric";
+  if (mono) {
+    const span = document.createElement("span");
+    span.className = "vbg-mono";
+    span.textContent = text;
+    el.append(span);
+  } else {
+    el.textContent = text;
+  }
+  row.append(el);
+}
+
+const clock = (iso) => `${new Date(iso).toISOString().slice(11, 19)} UTC`;
+
+// Opening proof: what the running process reports, read against Dockerfile.vercel.
+function renderOpening(r) {
+  const b = r.body;
+  const knownOs = !String(b.image_os).startsWith("unknown");
+  const debian = /debian/i.test(b.image_os);
+  const inImage = debian && Boolean(b.figlet);
+
+  // "Debian GNU/Linux 13 (trixie)" is shown as "Debian 13"; the full name stays in the tooltip.
+  $("stat-os").textContent = knownOs ? b.image_os.replace(" GNU/Linux", "").replace(/\s*\(.*\)$/, "") : "Unknown";
+  $("stat-os").title = b.image_os;
+  $("stat-os-detail").innerHTML = debian
+    ? `From ${code("python:3.14-slim")}, with Python ${esc(b.python)}`
+    : knownOs
+      ? `Not Debian, so not the image. Python ${esc(b.python)}`
+      : `No ${code("/etc/os-release")} here, so not the image. Python ${esc(b.python)}`;
+
+  $("stat-figlet").innerHTML = b.figlet ? mono(b.figlet) : "Not installed";
+  $("stat-figlet-detail").innerHTML = b.figlet_package
+    ? `Debian package ${code(b.figlet_package)}, from ${code("apt-get")}`
+    : b.figlet
+      ? `On ${code("PATH")}, but not from a Debian package`
+      : `The image installs it with ${code("apt-get")}; this machine doesn’t have it`;
+
+  $("stat-pid").textContent = String(b.pid);
+  $("stat-pid-detail").innerHTML = b.pid === 1
+    ? `${code("CMD")} execs uvicorn, so it is the container’s first process`
+    : inImage
+      ? `Not 1: something other than ${code("CMD")} is the first process here`
+      : `A process on this machine, not a container’s first process`;
+
+  $("stat-arch").innerHTML = mono(b.arch);
+  $("stat-arch-detail").innerHTML = b.arch === "x86_64"
+    ? `The image was built for ${code("linux/amd64")}`
+    : `Vercel builds ${code("linux/amd64")}, which reports ${code("x86_64")}`;
+
+  $("local-note").hidden = inImage;
+
+  const where = r.route.region ? `function region ${code(r.route.region)}` : "served locally";
+  $("opening-status").innerHTML = `Read from ${code("GET /")} when this page loaded: instance ${code(b.instance_id)}, ${where}, ${Math.round(r.ms)} ms round trip.`;
+
+  $("route-serve").innerHTML = r.route.region
+    ? `One Vercel Function on Fluid compute receives every path and forwards it to the container on port ${esc(b.port)}. This page’s request entered at ${code(r.route.edge)} and ran in ${code(r.route.region)}.`
+    : `One Vercel Function on Fluid compute receives every path and forwards it to the container on port 80, unless ${code("PORT")} is set. This page’s request was served locally, not through Vercel.`;
+
+  $("reuse-env").textContent = b.vercel_env === "production"
+    ? "This is a production deployment, so that happens after 5 minutes without traffic."
+    : b.vercel_env === "preview"
+      ? "This is a preview deployment, so that happens after 30 seconds without traffic."
+      : "This server runs locally, so nothing scales it in; it keeps its ID until you restart it.";
+}
+
+async function loadOpening() {
+  try {
+    const r = await callJSON("/");
+    if (r.status !== 200 || typeof r.body !== "object") throw new Error(`GET / returned ${r.status}`);
+    renderOpening(r);
+  } catch (error) {
+    $("opening-status").textContent = `Could not reach the container: ${error.message}`;
+  }
+}
+
+// figlet, run by the app on every request.
+async function runFiglet(event) {
+  if (event) event.preventDefault();
+  const text = $("figlet-text").value;
+  const out = $("figlet-out");
+  const status = $("figlet-status");
+  if (!text.trim()) {
+    status.textContent = "Type some text to render. The last result stays above.";
+    return;
+  }
+  const path = `/figlet?text=${encodeURIComponent(text)}`;
+  const button = $("figlet-run");
+  button.disabled = true;
+  status.textContent = "Running figlet in the container…";
+  const started = performance.now();
+  try {
+    const res = await fetch(path, { headers: { Accept: "text/plain" } });
+    const body = await res.text();
+    const ms = Math.round(performance.now() - started);
+    const route = parseVercelId(res.headers.get("x-vercel-id"));
+    const where = route.region ? `in ${code(route.region)}` : "locally";
+    out.textContent = body.replace(/\s+$/, "");
+    // Art keeps its columns and scrolls sideways; an error message wraps like text.
+    out.classList.toggle("vbg-custom-wrap", !res.ok);
+    if (res.ok) {
+      out.setAttribute("role", "img");
+      out.setAttribute("aria-label", `“${text}” drawn in large ASCII letters by figlet`);
+      status.innerHTML = `${code("GET /figlet")} returned ${res.status} in ${ms} ms; figlet ran ${where}.`;
+    } else {
+      out.removeAttribute("role");
+      out.removeAttribute("aria-label");
+      status.innerHTML = `${code("GET /figlet")} returned ${res.status} in ${ms} ms, served ${where}. The response is shown above.`;
+    }
+  } catch (error) {
+    status.textContent = `The request failed: ${error.message}. The last result stays above.`;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// Instance reuse
+function drawReuse(results, mode) {
+  const body = $("reuse-rows");
+  body.replaceChildren();
+  results.forEach((r, i) => {
+    const row = document.createElement("tr");
+    cell(row, String(i + 1), { header: true });
+    cell(row, r.body.instance_id, { mono: true });
+    cell(row, clock(r.body.instance_started_at), { mono: true });
+    cell(row, String(r.body.pid), { numeric: true });
+    cell(row, `${r.body.instance_uptime_s.toFixed(1)} s`, { numeric: true });
+    cell(row, `${Math.round(r.ms)} ms`, { numeric: true });
+    body.append(row);
+  });
+  const ids = new Set(results.map((r) => r.body.instance_id));
+  $("reuse-summary").textContent = ids.size === 1
+    ? `${results.length} requests ${mode}, one container answered all of them.`
+    : `${results.length} requests ${mode}, ${ids.size} containers answered.`;
+}
+
+async function runReuse(parallel) {
+  const buttons = [$("reuse-seq"), $("reuse-par")];
+  buttons.forEach((b) => (b.disabled = true));
+  $("reuse-summary").textContent = "Sending requests…";
+  try {
+    let results;
+    if (parallel) {
+      results = await Promise.all(Array.from({ length: 10 }, () => callJSON("/")));
+    } else {
+      results = [];
+      for (let i = 0; i < 10; i++) results.push(await callJSON("/"));
+    }
+    const failed = results.find((r) => r.status !== 200 || typeof r.body !== "object");
+    if (failed) throw new Error(`GET / returned ${failed.status}`);
+    drawReuse(results, parallel ? "sent at once" : "sent in a row");
+  } catch (error) {
+    $("reuse-summary").textContent = `Requests failed: ${error.message}`;
+  } finally {
+    buttons.forEach((b) => (b.disabled = false));
+  }
+}
+
+$("figlet-form").addEventListener("submit", runFiglet);
+$("reuse-seq").addEventListener("click", () => runReuse(false));
+$("reuse-par").addEventListener("click", () => runReuse(true));
+loadOpening();
+runFiglet();
+</script>
+</body>
+</html>
